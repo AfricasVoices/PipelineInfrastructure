@@ -3,30 +3,43 @@ from httplib2 import Http
 from oauth2client import file, client, tools
 from googleapiclient.http import MediaFileUpload
 
-import mimetypes
 import os
+import sys
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = 'https://www.googleapis.com/auth/drive'
 
 drive_service = None
-drive_folder_root = None
+drive_root_folder = None
 
-def init_client(auth_credentials_path):
+def init_client(credentials_path, token_path):
     global drive_service
-    global drive_folder_root
-    store = file.Storage('token.json')
-    creds = store.get()
+    global drive_root_folder
+
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first time.
+    token_store = file.Storage(token_path)
+    creds = token_store.get()
+
     if not creds or creds.invalid:
-        flow = client.flow_from_clientsecrets('credentials.json', SCOPES)
-        creds = tools.run_flow(flow, store)
+        flow = client.flow_from_clientsecrets(credentials_path, SCOPES)
+
+        # Parse cmd line arguments in case some of them are for the oauth flow.
+        flags, unknown = tools.argparser.parse_known_args(sys.argv)
+
+        # Opens a web browser page asking the user to grant access to the data in SCOPES
+        # and afte the user has granted access, stores the access token in [token_path]
+        # so that it can be reused on future calls to the Drive API.
+        creds = tools.run_flow(flow, token_store, flags=flags)
+
     drive_service = build('drive', 'v3', http=creds.authorize(Http()))
-    drive_folder_root = drive_service.files()
+    drive_root_folder = drive_service.files()
 
 def get_root_id():
-    return drive_folder_root.get(fileId='root').execute().get('id')
+    print('Getting id of drive root folder...')
+    return drive_root_folder.get(fileId='root').execute().get('id')
 
-def get_children(folder_id):
+def get_children_by_id(folder_id):
     """Returns a list with map elements with the following structure:
     {
         'name': ''
@@ -36,8 +49,12 @@ def get_children(folder_id):
     """
     children = []
     page_token = None
+
+    print('Getting children of folder with id "{}"...'.format(folder_id))
+    page_count = 1
     while True:
-        response = drive_folder_root.list(
+        print('Got page {}'.format(page_count))
+        response = drive_root_folder.list(
             q="'{}' in parents".format(folder_id),
             spaces='drive',
             fields='nextPageToken, files(id, name, mimeType)',
@@ -47,10 +64,25 @@ def get_children(folder_id):
         page_token = response.get('nextPageToken', None)
         if page_token is None:
             break
+    print('Getting children of folder with id "{}" - done. {} children'.format(folder_id, len(children)))
     return children
 
+
+def get_children(folder_path):
+    """Returns a list with map elements with the following structure:
+    {
+        'name': ''
+        'id': '',
+        'mimeType': '',
+    }
+    """
+    folder_id = get_path_id(folder_path)
+    return get_children_by_id(folder_id)
+
+
 def get_folder_id(name, parent_id):
-    response = drive_folder_root.list(
+    print('Getting id of folder "{}" under parent with id "{}"...'.format(name, parent_id))
+    response = drive_root_folder.list(
         q="name='{}' and '{}' in parents and mimeType='application/vnd.google-apps.folder'".format(name, parent_id),
         spaces='drive',
         fields='files(id)').execute()
@@ -59,6 +91,7 @@ def get_folder_id(name, parent_id):
         raise LookupError('Folder "{}" not found under parent with id {}.'.format(name, parent_id))
     if (len(files) > 1):
         raise LookupError('Multiple folders with name "{}" found under parent with id {}.'.format(name, parent_id))
+    print('Getting id of folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, files[0].get('id')))
     return files[0].get('id')
 
 def get_path_id(path):
@@ -77,47 +110,42 @@ def _split_path(path):
     folders.reverse()
     return folders
 
-def update_file(source_file_path, file_id, mimetype):
+def update_file(source_file_path, target_file_id):
     media = MediaFileUpload(source_file_path,
-                            mimetype=mimetype,
                             resumable=True)
 
-    file = drive_folder_root.update(fileId=file_id,
+    print('Updating file with ID "{}" with source file "{}"...'.format(target_file_id, source_file_path))
+    file = drive_root_folder.update(fileId=target_file_id,
                                     media_body=media,
                                     fields='name').execute()
-    
-    print('File "{}" with ID: {} updated'.format(file.get('name'), file_id))
 
-def create_file(source_file_path, mimetype, parent_folder_id, uploaded_file_name=None):
-    if uploaded_file_name == None:
-        uploaded_file_name = os.path.basename(source_file_path)
+    print('Updating file with ID "{}" with source file "{}" - done. File name was "{}"'.format(target_file_id, source_file_path, file.get('name')))
 
+def create_file(source_file_path, target_folder_path, target_file_name=None):
+    if target_file_name == None:
+        target_file_name = os.path.basename(source_file_path)
+
+    target_folder_id = get_path_id(target_folder_path)
     file_metadata = {
-        'name': uploaded_file_name,
-        'parents': [parent_folder_id]
+        'name': target_file_name,
+        'parents': [target_folder_id]
     }
     media = MediaFileUpload(source_file_path,
-                            mimetype=mimetype,
                             resumable=True)
 
-    file = drive_folder_root.create(body=file_metadata,
+    print('Creating file "{}" in folder "{}" with source file "{}"...'.format(target_file_name, target_folder_path, source_file_path))
+    file = drive_root_folder.create(body=file_metadata,
                                     media_body=media,
                                     fields='id').execute()
-    print('File "{}" created with ID: {}'.format(uploaded_file_name, file.get('id')))
+    print('Creating file "{}" in folder "{}" with source file "{}" - done. File id is "{}"'.format(target_file_name, target_folder_path, source_file_path, file.get('id')))
 
-def create_or_update_file(source_file_path, drive_folder_path, uploaded_file_name=None):
-    if uploaded_file_name == None:
-        uploaded_file_name = os.path.basename(source_file_path)
+def create_or_update_file(source_file_path, target_folder_path, target_file_name=None):
+    if target_file_name == None:
+        target_file_name = os.path.basename(source_file_path)
 
-    (mimetype, _) = mimetypes.guess_type(uploaded_file_name)
-    if (mimetype == None):
-        mimetype = 'application/octet-stream'
-    
-    parent_folder_id = get_path_id(drive_folder_path)
-    children = get_children(parent_folder_id)
-    print(children)
-    children_with_upload_name = list(filter(lambda file: file.get('name') == uploaded_file_name, children))
-    
+    children = get_children(target_folder_path)
+    children_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, children))
+
     if (len(children_with_upload_name) > 1):
         print('Multiple files with the same name found in Drive folder.')
         print('I don\'t know which to update, aborting.')
@@ -127,9 +155,9 @@ def create_or_update_file(source_file_path, drive_folder_path, uploaded_file_nam
         existing_file = children_with_upload_name[0]
         # Make sure it's not a folder
         if (existing_file.get('mimetype') == 'application/vnd.google-apps.folder'):
-            print('Attempting to replace a folder with a file with name "{}"'.format(uploaded_file_name))
+            print('Attempting to replace a folder with a file with name "{}"'.format(target_file_name))
             exit(1)
-        update_file(source_file_path, existing_file.get('id'), mimetype)
+        update_file(source_file_path, existing_file.get('id'))
         return
 
-    create_file(source_file_path, mimetype, parent_folder_id, uploaded_file_name)
+    create_file(source_file_path, target_folder_path, target_file_name)
