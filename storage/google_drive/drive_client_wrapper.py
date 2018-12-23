@@ -3,6 +3,7 @@ from httplib2 import Http
 from oauth2client import file, client, tools
 from googleapiclient.http import MediaFileUpload
 
+import logging
 import os
 import sys
 
@@ -11,6 +12,12 @@ SCOPES = 'https://www.googleapis.com/auth/drive'
 
 drive_service = None
 drive_root_folder = None
+
+log = logging.getLogger('dcw')
+log.setLevel(logging.INFO)
+consoleHandler = logging.StreamHandler(sys.stdout)
+consoleHandler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+log.addHandler(consoleHandler)
 
 def init_client(credentials_path, token_path):
     global drive_service
@@ -36,7 +43,7 @@ def init_client(credentials_path, token_path):
     drive_root_folder = drive_service.files()
 
 def get_root_id():
-    print('Getting id of drive root folder...')
+    log.info('Getting id of drive root folder...')
     return drive_root_folder.get(fileId='root').execute().get('id')
 
 def get_children_by_id(folder_id):
@@ -50,10 +57,10 @@ def get_children_by_id(folder_id):
     children = []
     page_token = None
 
-    print('Getting children of folder with id "{}"...'.format(folder_id))
+    log.info('Getting children of folder with id "{}"...'.format(folder_id))
     page_count = 1
     while True:
-        print('Got page {}'.format(page_count))
+        log.info('Getting children of folder with id "{}" - got page {}'.format(folder_id, page_count))
         response = drive_root_folder.list(
             q="'{}' in parents".format(folder_id),
             spaces='drive',
@@ -64,7 +71,7 @@ def get_children_by_id(folder_id):
         page_token = response.get('nextPageToken', None)
         if page_token is None:
             break
-    print('Getting children of folder with id "{}" - done. {} children'.format(folder_id, len(children)))
+    log.info('Getting children of folder with id "{}" - done. {} children'.format(folder_id, len(children)))
     return children
 
 
@@ -81,17 +88,19 @@ def get_children(folder_path):
 
 
 def get_folder_id(name, parent_id):
-    print('Getting id of folder "{}" under parent with id "{}"...'.format(name, parent_id))
+    log.info('Getting id of folder "{}" under parent with id "{}"...'.format(name, parent_id))
     response = drive_root_folder.list(
         q="name='{}' and '{}' in parents and mimeType='application/vnd.google-apps.folder'".format(name, parent_id),
         spaces='drive',
         fields='files(id)').execute()
     files = response.get('files', [])
     if (len(files) == 0):
-        raise LookupError('Folder "{}" not found under parent with id {}.'.format(name, parent_id))
+        log.error('Folder "{}" not found under parent with id {}.'.format(name, parent_id))
+        exit(1)
     if (len(files) > 1):
-        raise LookupError('Multiple folders with name "{}" found under parent with id {}.'.format(name, parent_id))
-    print('Getting id of folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, files[0].get('id')))
+        log.error('Multiple folders with name "{}" found under parent with id {}.'.format(name, parent_id))
+        exit(1)
+    log.info('Getting id of folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, files[0].get('id')))
     return files[0].get('id')
 
 def get_path_id(path):
@@ -114,12 +123,12 @@ def update_file(source_file_path, target_file_id):
     media = MediaFileUpload(source_file_path,
                             resumable=True)
 
-    print('Updating file with ID "{}" with source file "{}"...'.format(target_file_id, source_file_path))
+    log.info('Updating file with ID "{}" with source file "{}"...'.format(target_file_id, source_file_path))
     file = drive_root_folder.update(fileId=target_file_id,
                                     media_body=media,
                                     fields='name').execute()
 
-    print('Updating file with ID "{}" with source file "{}" - done. File name was "{}"'.format(target_file_id, source_file_path, file.get('name')))
+    log.info('Updating file with ID "{}" with source file "{}" - done. File name was "{}"'.format(target_file_id, source_file_path, file.get('name')))
 
 def create_file(source_file_path, target_folder_path, target_file_name=None):
     if target_file_name == None:
@@ -133,11 +142,11 @@ def create_file(source_file_path, target_folder_path, target_file_name=None):
     media = MediaFileUpload(source_file_path,
                             resumable=True)
 
-    print('Creating file "{}" in folder "{}" with source file "{}"...'.format(target_file_name, target_folder_path, source_file_path))
+    log.info('Creating file "{}" in folder "{}" with source file "{}"...'.format(target_file_name, target_folder_path, source_file_path))
     file = drive_root_folder.create(body=file_metadata,
                                     media_body=media,
                                     fields='id').execute()
-    print('Creating file "{}" in folder "{}" with source file "{}" - done. File id is "{}"'.format(target_file_name, target_folder_path, source_file_path, file.get('id')))
+    log.info('Creating file "{}" in folder "{}" with source file "{}" - done. File id is "{}"'.format(target_file_name, target_folder_path, source_file_path, file.get('id')))
 
 def create_or_update_file(source_file_path, target_folder_path, target_file_name=None):
     if target_file_name == None:
@@ -147,15 +156,15 @@ def create_or_update_file(source_file_path, target_folder_path, target_file_name
     children_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, children))
 
     if (len(children_with_upload_name) > 1):
-        print('Multiple files with the same name found in Drive folder.')
-        print('I don\'t know which to update, aborting.')
+        log.error('Multiple files with the same name found in Drive folder.')
+        log.error('I don\'t know which to update, aborting.')
         exit(1)
 
     if (len(children_with_upload_name) == 1):
         existing_file = children_with_upload_name[0]
         # Make sure it's not a folder
         if (existing_file.get('mimetype') == 'application/vnd.google-apps.folder'):
-            print('Attempting to replace a folder with a file with name "{}"'.format(target_file_name))
+            log.error('Attempting to replace a folder with a file with name "{}"'.format(target_file_name))
             exit(1)
         update_file(source_file_path, existing_file.get('id'))
         return
