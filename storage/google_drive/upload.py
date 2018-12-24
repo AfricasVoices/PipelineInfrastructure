@@ -16,4 +16,4 @@ dcw.init_client(AUTH_CREDENTIALS, AUTH_TOKEN)
 FILE_TO_UPLOAD = sys.argv[3]
 DRIVE_FOLDER_PATH = sys.argv[4]
 
-dcw.create_or_update_file(FILE_TO_UPLOAD, DRIVE_FOLDER_PATH)
+dcw.update_or_create(FILE_TO_UPLOAD, DRIVE_FOLDER_PATH, recursive=True)

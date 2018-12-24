@@ -10,8 +10,7 @@ import sys
 # If modifying these scopes, delete the file token.json.
 SCOPES = 'https://www.googleapis.com/auth/drive'
 
-drive_service = None
-drive_root_folder = None
+_drive_service = None
 
 log = logging.getLogger('dcw')
 log.setLevel(logging.INFO)
@@ -20,8 +19,7 @@ consoleHandler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(m
 log.addHandler(consoleHandler)
 
 def init_client(credentials_path, token_path):
-    global drive_service
-    global drive_root_folder
+    global _drive_service
 
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time.
@@ -39,14 +37,13 @@ def init_client(credentials_path, token_path):
         # so that it can be reused on future calls to the Drive API.
         creds = tools.run_flow(flow, token_store, flags=flags)
 
-    drive_service = build('drive', 'v3', http=creds.authorize(Http()))
-    drive_root_folder = drive_service.files()
+    _drive_service = build('drive', 'v3', http=creds.authorize(Http()))
 
-def get_root_id():
+def _get_root_id():
     log.info('Getting id of drive root folder...')
-    return drive_root_folder.get(fileId='root').execute().get('id')
+    return _drive_service.files().get(fileId='root').execute().get('id')
 
-def get_children_by_id(folder_id):
+def _list_folder_id(folder_id):
     """Returns a list with map elements with the following structure:
     {
         'name': ''
@@ -61,7 +58,7 @@ def get_children_by_id(folder_id):
     page_count = 1
     while True:
         log.info('Getting children of folder with id "{}" - got page {}'.format(folder_id, page_count))
-        response = drive_root_folder.list(
+        response = _drive_service.files().list(
             q="'{}' in parents".format(folder_id),
             spaces='drive',
             fields='nextPageToken, files(id, name, mimeType)',
@@ -74,40 +71,30 @@ def get_children_by_id(folder_id):
     log.info('Getting children of folder with id "{}" - done. {} children'.format(folder_id, len(children)))
     return children
 
-
-def get_children(folder_path):
-    """Returns a list with map elements with the following structure:
-    {
-        'name': ''
-        'id': '',
-        'mimeType': '',
-    }
-    """
-    folder_id = get_path_id(folder_path)
-    return get_children_by_id(folder_id)
-
-
-def get_folder_id(name, parent_id):
+def _get_folder_id(name, parent_id, recursive=False):
     log.info('Getting id of folder "{}" under parent with id "{}"...'.format(name, parent_id))
-    response = drive_root_folder.list(
+    response = _drive_service.files().list(
         q="name='{}' and '{}' in parents and mimeType='application/vnd.google-apps.folder'".format(name, parent_id),
         spaces='drive',
         fields='files(id)').execute()
     files = response.get('files', [])
     if (len(files) == 0):
-        log.error('Folder "{}" not found under parent with id {}.'.format(name, parent_id))
-        exit(1)
+        if (recursive == False):
+            log.error('Folder "{}" not found under parent with id {}.'.format(name, parent_id))
+            exit(1)
+        # Create folder
+        files.append({'id': _add_folder(name, parent_id)})
     if (len(files) > 1):
         log.error('Multiple folders with name "{}" found under parent with id {}.'.format(name, parent_id))
         exit(1)
     log.info('Getting id of folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, files[0].get('id')))
     return files[0].get('id')
 
-def get_path_id(path):
+def _get_path_id(path, recursive=False):
     folders = _split_path(path)
-    folder_id = get_root_id()
+    folder_id = _get_root_id()
     for folder in folders:
-        folder_id = get_folder_id(folder, folder_id)
+        folder_id = _get_folder_id(folder, folder_id, recursive)
     return folder_id
 
 def _split_path(path):
@@ -119,22 +106,33 @@ def _split_path(path):
     folders.reverse()
     return folders
 
-def update_file(source_file_path, target_file_id):
+def _add_folder(name, parent_id):
+    log.info('Creating folder "{}" under parent with id "{}"...'.format(name, parent_id))
+    file_metadata = {
+        'name': name,
+        'mimeType': 'application/vnd.google-apps.folder'
+    }
+    files = _drive_service.files().create(body=file_metadata,
+                                        fields='id').execute()
+    log.info('Creating folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, files[0].get('id')))
+    return files[0].get('id')
+
+def _update_file(source_file_path, target_file_id):
     media = MediaFileUpload(source_file_path,
                             resumable=True)
 
     log.info('Updating file with ID "{}" with source file "{}"...'.format(target_file_id, source_file_path))
-    file = drive_root_folder.update(fileId=target_file_id,
+    file = _drive_service.files().update(fileId=target_file_id,
                                     media_body=media,
                                     fields='name').execute()
 
     log.info('Updating file with ID "{}" with source file "{}" - done. File name was "{}"'.format(target_file_id, source_file_path, file.get('name')))
 
-def create_file(source_file_path, target_folder_path, target_file_name=None):
+def _create_file(source_file_path, target_folder_path, target_file_name=None):
     if target_file_name == None:
         target_file_name = os.path.basename(source_file_path)
 
-    target_folder_id = get_path_id(target_folder_path)
+    target_folder_id = _get_path_id(target_folder_path)
     file_metadata = {
         'name': target_file_name,
         'parents': [target_folder_id]
@@ -143,30 +141,31 @@ def create_file(source_file_path, target_folder_path, target_file_name=None):
                             resumable=True)
 
     log.info('Creating file "{}" in folder "{}" with source file "{}"...'.format(target_file_name, target_folder_path, source_file_path))
-    file = drive_root_folder.create(body=file_metadata,
+    file = _drive_service.files().create(body=file_metadata,
                                     media_body=media,
                                     fields='id').execute()
     log.info('Creating file "{}" in folder "{}" with source file "{}" - done. File id is "{}"'.format(target_file_name, target_folder_path, source_file_path, file.get('id')))
 
-def create_or_update_file(source_file_path, target_folder_path, target_file_name=None):
+def update_or_create(source_file_path, target_folder_path, target_file_name=None, recursive=False):
     if target_file_name == None:
         target_file_name = os.path.basename(source_file_path)
 
-    children = get_children(target_folder_path)
-    children_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, children))
+    target_folder_id = _get_path_id(target_folder_path, recursive)
+    files = _list_folder_id(target_folder_id)
+    files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
 
-    if (len(children_with_upload_name) > 1):
+    if (len(files_with_upload_name) > 1):
         log.error('Multiple files with the same name found in Drive folder.')
         log.error('I don\'t know which to update, aborting.')
         exit(1)
 
-    if (len(children_with_upload_name) == 1):
-        existing_file = children_with_upload_name[0]
+    if (len(files_with_upload_name) == 1):
+        existing_file = files_with_upload_name[0]
         # Make sure it's not a folder
         if (existing_file.get('mimetype') == 'application/vnd.google-apps.folder'):
             log.error('Attempting to replace a folder with a file with name "{}"'.format(target_file_name))
             exit(1)
-        update_file(source_file_path, existing_file.get('id'))
+        _update_file(source_file_path, existing_file.get('id'))
         return
 
-    create_file(source_file_path, target_folder_path, target_file_name)
+    _create_file(source_file_path, target_folder_path, target_file_name)
