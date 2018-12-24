@@ -1,6 +1,5 @@
-from googleapiclient.discovery import build
-from httplib2 import Http
-from oauth2client import file, client, tools
+import google.oauth2.service_account
+import googleapiclient.discovery
 from googleapiclient.http import MediaFileUpload
 
 import logging
@@ -8,7 +7,7 @@ import os
 import sys
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = 'https://www.googleapis.com/auth/drive'
+SCOPES = ['https://www.googleapis.com/auth/drive']
 
 _drive_service = None
 
@@ -18,26 +17,15 @@ consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 log.addHandler(consoleHandler)
 
-def init_client(credentials_path, token_path):
+def init_client(service_account_credentials_file):
     global _drive_service
 
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first time.
-    token_store = file.Storage(token_path)
-    creds = token_store.get()
+    credentials = google.oauth2.service_account.Credentials.from_service_account_file(service_account_credentials_file, scopes=SCOPES)
+    if not credentials:
+        log.error('Failed to get credentials from file "{}"'.format(service_account_credentials_file))
+        exit(1)
 
-    if not creds or creds.invalid:
-        flow = client.flow_from_clientsecrets(credentials_path, SCOPES)
-
-        # Parse cmd line arguments in case some of them are for the oauth flow.
-        flags, unknown = tools.argparser.parse_known_args(sys.argv)
-
-        # Opens a web browser page asking the user to grant access to the data in SCOPES
-        # and afte the user has granted access, stores the access token in [token_path]
-        # so that it can be reused on future calls to the Drive API.
-        creds = tools.run_flow(flow, token_store, flags=flags)
-
-    _drive_service = build('drive', 'v3', http=creds.authorize(Http()))
+    _drive_service = googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
 
 def _get_root_id():
     log.info('Getting id of drive root folder...')
@@ -90,9 +78,36 @@ def _get_folder_id(name, parent_id, recursive=False):
     log.info('Getting id of folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, files[0].get('id')))
     return files[0].get('id')
 
-def _get_path_id(path, recursive=False):
+def _get_shared_folder_id(name):
+    log.info('Getting id of shared-with-me folder "{}"...'.format(name))
+    response = _drive_service.files().list(
+        q="name='{}' and sharedWithMe=true and mimeType='application/vnd.google-apps.folder'".format(name),
+        spaces='drive',
+        fields='files(id)').execute()
+    files = response.get('files', [])
+    if (len(files) == 0):
+        log.error('Folder "{}" not found in shared-with-me category.'.format(name))
+        exit(1)
+    if (len(files) > 1):
+        log.error('Multiple folders with name "{}" found in shared-with-me category.'.format(name))
+        exit(1)
+    log.info('Getting id of shared-with-me folder "{}" - done. Folder id is "{}"'.format(name, files[0].get('id')))
+    return files[0].get('id')
+
+
+def _get_path_id(path, recursive=False, target_folder_is_shared_with_me=False):
     folders = _split_path(path)
-    folder_id = _get_root_id()
+    folder_id = None
+    
+    if (target_folder_is_shared_with_me):
+        if (len(folders) == 0):
+            log.error('Missing target folder name which necessary when looking for a shared-with-me type folder')
+            exit(1)
+        folder_id = _get_shared_folder_id(folders[0])
+        folders.remove(folders[0])
+    else:
+        folder_id = _get_root_id()
+    
     for folder in folders:
         folder_id = _get_folder_id(folder, folder_id, recursive)
     return folder_id
@@ -112,10 +127,10 @@ def _add_folder(name, parent_id):
         'name': name,
         'mimeType': 'application/vnd.google-apps.folder'
     }
-    files = _drive_service.files().create(body=file_metadata,
+    file = _drive_service.files().create(body=file_metadata,
                                         fields='id').execute()
-    log.info('Creating folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, files[0].get('id')))
-    return files[0].get('id')
+    log.info('Creating folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, file.get('id')))
+    return file.get('id')
 
 def _update_file(source_file_path, target_file_id):
     media = MediaFileUpload(source_file_path,
@@ -128,11 +143,10 @@ def _update_file(source_file_path, target_file_id):
 
     log.info('Updating file with ID "{}" with source file "{}" - done. File name was "{}"'.format(target_file_id, source_file_path, file.get('name')))
 
-def _create_file(source_file_path, target_folder_path, target_file_name=None):
+def _create_file(source_file_path, target_folder_id, target_file_name=None):
     if target_file_name == None:
         target_file_name = os.path.basename(source_file_path)
 
-    target_folder_id = _get_path_id(target_folder_path)
     file_metadata = {
         'name': target_file_name,
         'parents': [target_folder_id]
@@ -140,17 +154,17 @@ def _create_file(source_file_path, target_folder_path, target_file_name=None):
     media = MediaFileUpload(source_file_path,
                             resumable=True)
 
-    log.info('Creating file "{}" in folder "{}" with source file "{}"...'.format(target_file_name, target_folder_path, source_file_path))
+    log.info('Creating file "{}" in folder with ID "{}" with source file "{}"...'.format(target_file_name, target_folder_id, source_file_path))
     file = _drive_service.files().create(body=file_metadata,
                                     media_body=media,
                                     fields='id').execute()
-    log.info('Creating file "{}" in folder "{}" with source file "{}" - done. File id is "{}"'.format(target_file_name, target_folder_path, source_file_path, file.get('id')))
+    log.info('Creating file "{}" in folder with ID "{}" with source file "{}" - done. File id is "{}"'.format(target_file_name, target_folder_id, source_file_path, file.get('id')))
 
-def update_or_create(source_file_path, target_folder_path, target_file_name=None, recursive=False):
+def update_or_create(source_file_path, target_folder_path, target_file_name=None, recursive=False, target_folder_is_shared_with_me=False):
     if target_file_name == None:
         target_file_name = os.path.basename(source_file_path)
 
-    target_folder_id = _get_path_id(target_folder_path, recursive)
+    target_folder_id = _get_path_id(target_folder_path, recursive, target_folder_is_shared_with_me)
     files = _list_folder_id(target_folder_id)
     files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
 
@@ -168,4 +182,4 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
         _update_file(source_file_path, existing_file.get('id'))
         return
 
-    _create_file(source_file_path, target_folder_path, target_file_name)
+    _create_file(source_file_path, target_folder_id, target_file_name)
