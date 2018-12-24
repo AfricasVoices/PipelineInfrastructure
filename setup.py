@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="pipelineinfrastructure",
+    name="PipelineInfrastructure",
     version="0.0.1",
     url="https://github.com/AfricasVoices/Pipeline-Infrastructure",
     
