@@ -125,7 +125,8 @@ def _add_folder(name, parent_id):
     log.info('Creating folder "{}" under parent with id "{}"...'.format(name, parent_id))
     file_metadata = {
         'name': name,
-        'mimeType': 'application/vnd.google-apps.folder'
+        'mimeType': 'application/vnd.google-apps.folder',
+        'parents': [parent_id],
     }
     file = _drive_service.files().create(body=file_metadata,
                                         fields='id').execute()
