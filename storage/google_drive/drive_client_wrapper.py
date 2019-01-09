@@ -75,8 +75,11 @@ def _get_folder_id(name, parent_id, recursive=False):
     if (len(files) > 1):
         log.error('Multiple folders with name "{}" found under parent with id {}.'.format(name, parent_id))
         exit(1)
-    log.info('Getting id of folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, files[0].get('id')))
-    return files[0].get('id')
+    assert(len(files) == 1)
+    folder = files[0]
+    folder_id = folder.get('id')
+    log.info('Getting id of folder "{}" under parent with id "{}" - done. Folder id is "{}"'.format(name, parent_id, folder_id))
+    return folder_id
 
 def _get_shared_folder_id(name):
     log.info('Getting id of shared-with-me folder "{}"...'.format(name))
@@ -91,8 +94,11 @@ def _get_shared_folder_id(name):
     if (len(files) > 1):
         log.error('Multiple folders with name "{}" found in shared-with-me category.'.format(name))
         exit(1)
-    log.info('Getting id of shared-with-me folder "{}" - done. Folder id is "{}"'.format(name, files[0].get('id')))
-    return files[0].get('id')
+    assert(len(files) == 1)
+    folder = files[0]
+    folder_id = folder.get('id')
+    log.info('Getting id of shared-with-me folder "{}" - done. Folder id is "{}"'.format(name, folder_id))
+    return folder_id
 
 
 def _get_path_id(path, recursive=False, target_folder_is_shared_with_me=False):
