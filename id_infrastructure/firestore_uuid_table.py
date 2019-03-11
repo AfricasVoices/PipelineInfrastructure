@@ -8,6 +8,9 @@ import uuid
 
 BATCH_SIZE = 500
 
+"""
+Mapping table between a string and a random UUID backed by Firestore
+"""
 class FirestoreUuidTable(object):
     def __init__(self, table_name, crypto_token_path, uuid_prefix):
         cred = credentials.Certificate(crypto_token_path)
@@ -17,7 +20,7 @@ class FirestoreUuidTable(object):
         self._uuid_prefix = uuid_prefix
 
     def data_to_uuid_batch(self, list_of_data_requested):
-        # Steam the datastore to a local copy
+        # Stream the datastore to a local copy
         # Seperate out the mappings of existing items
         # Compute new mappings
         # Bulk update the data store
@@ -80,8 +83,8 @@ class FirestoreUuidTable(object):
         print ("Ref: {}, exists: {}".format(uuid_doc_ref, exists))
 
         if exists == False:
-            print ("No mapping found for: {}".format(data))
             new_uuid = FirestoreUuidTable.generate_new_uuid(self._uuid_prefix)
+            print ("No mapping found for: {}, assigning UUID: {}".format(data, new_uuid))
             self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)).set(
                 {
                     "uuid" : new_uuid
@@ -95,7 +98,6 @@ class FirestoreUuidTable(object):
     def uuid_to_data(self, uuid_to_lookup):
         # Search for the UUID
         # return the data or fail
-        # Create a reference to the cities collection
         uuid_col_ref = self._client.collection(u'tables/{}/mappings'.format(self._table_name))
 
         # Create a query against the collection
