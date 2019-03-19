@@ -17,12 +17,22 @@ consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 log.addHandler(consoleHandler)
 
-def init_client(service_account_credentials_file):
+def init_client_from_file(service_account_credentials_file):
     global _drive_service
 
     credentials = google.oauth2.service_account.Credentials.from_service_account_file(service_account_credentials_file, scopes=SCOPES)
     if not credentials:
         log.error('Failed to get credentials from file "{}"'.format(service_account_credentials_file))
+        exit(1)
+
+    _drive_service = googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
+    
+def init_client_from_info(service_account_credentials_info):
+    global _drive_service
+
+    credentials = google.oauth2.service_account.Credentials.from_service_account_info(service_account_credentials_info, scopes=SCOPES)
+    if not credentials:
+        log.error('Failed to get credentials from dict')
         exit(1)
 
     _drive_service = googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
