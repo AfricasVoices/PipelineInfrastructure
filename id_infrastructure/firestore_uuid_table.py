@@ -112,6 +112,23 @@ class FirestoreUuidTable(object):
             return result.id
         raise LookupError() 
 
+    def uuid_to_data_batch(self, uuids_to_lookup):
+        # Search for the UUID
+        # Return a mapping data for the uuids that were in the collection
+        reverse_mappings = dict() 
+        for mapping in self._client.collection(u'tables/{}/mappings'.format(self._table_name)).get():
+            reverse_mappings[mapping.get(_UUID_KEY_NAME)] = mapping.id
+        
+        print (f"loaded {len(reverse_mappings)} mappings")
+
+        results = {}
+        for uuid_lookup in uuids_to_lookup:
+            if uuid_lookup in reverse_mappings.keys():
+                results[uuid_lookup] = reverse_mappings[uuid_lookup]
+
+        print (f"found keys for {len(results)} out of {len(uuids_to_lookup)} requests")
+        return results
+
     @staticmethod
     def generate_new_uuid(prefix):
         return prefix + str(uuid.uuid4())

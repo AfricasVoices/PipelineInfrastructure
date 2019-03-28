@@ -39,7 +39,7 @@ except:
 
 
 
-# Execute batch get
+# Execute batch get data -> uuid
 print ("Testing Batch + lookup success")
 now_1 = datetime.datetime.now().isoformat()
 mapping_1 = fsut.data_to_uuid_batch([
@@ -67,3 +67,20 @@ assert mapping_1["Test lookup-1"] == mapping_2["Test lookup-1"]
 assert mapping_1["Test lookup-2"] == mapping_2["Test lookup-2"]
 assert mapping_1["Test lookup-" + now_1] != mapping_2["Test lookup-" + now_2]
 assert mapping_1["Test lookup-2-" + now_1] != mapping_2["Test lookup-2-" + now_2]
+
+
+# Execute batch get uuid -> data
+uuid_1 = fsut.data_to_uuid("Test lookup-1")
+uuid_2 = fsut.data_to_uuid("Test lookup-2")
+
+print ("Testing Batch + lookup success")
+lookup_1 = fsut.uuid_to_data_batch([
+    uuid_1,    # this will be in datastore
+    uuid_2,    # this will be in datastore
+    "This won't be a uuid", # this won't be
+])
+print (lookup_1)
+
+assert len(lookup_1) == 2
+assert lookup_1[uuid_1] == "Test lookup-1"
+assert lookup_1[uuid_2] == "Test lookup-2"
