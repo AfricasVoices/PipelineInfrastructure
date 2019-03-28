@@ -7,20 +7,20 @@ def download_blob_to_string(bucket_credentials_file_path, blob_url):
     """
     Downloads the contents of a Google Cloud blob to a string.
 
-    :param bucket_credentials_file_path:
+    :param bucket_credentials_file_path: Path to a credentials file for accessing the bucket.
     :type bucket_credentials_file_path: str
-    :param blob_url:
-    :type blob_url: str`
-    :return: Contents of 
+    :param blob_url: gs URL to the blob to download (i.e. of the form gs://<bucket-name>/<blob-name>).
+    :type blob_url: str
+    :return: Contents of the requested blob.
     :rtype: str
     """
     parsed_blob_url = urlparse(blob_url)
     assert parsed_blob_url.scheme == "gs", "DriveCredentialsFileURL needs to be a gs " \
-                                           "URL (i.e. of the form gs://bucket-name/file)"
+                                           "URL (i.e. of the form gs://bucket-name/blob-name)"
     bucket_name = parsed_blob_url.netloc
     blob_name = parsed_blob_url.path.lstrip("/")
 
-    print(f"Downloading blob '{blob_name}' in bucket '{bucket_name}'...")
+    print(f"Downloading blob '{blob_name}' in bucket '{bucket_name}' to string...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
