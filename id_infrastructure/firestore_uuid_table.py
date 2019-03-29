@@ -7,6 +7,8 @@ from firebase_admin import firestore
 import uuid
 
 BATCH_SIZE = 500
+_UUID_KEY_NAME = "uuid"
+
 
 """
 Mapping table between a string and a random UUID backed by Firestore
@@ -28,7 +30,7 @@ class FirestoreUuidTable(object):
 
         existing_mappings = dict() 
         for mapping in self._client.collection(u'tables/{}/mappings'.format(self._table_name)).get():
-            existing_mappings[mapping.id] = mapping.get("uuid")
+            existing_mappings[mapping.id] = mapping.get(_UUID_KEY_NAME)
 
         set_of_data_requested = set(list_of_data_requested)
         new_mappings_needed = set_of_data_requested.difference(
@@ -50,7 +52,7 @@ class FirestoreUuidTable(object):
             batch.set(
                 self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)),
                 {
-                    "uuid" : new_mappings[data]
+                    _UUID_KEY_NAME : new_mappings[data]
                 })
             batch_counter += 1
             if batch_counter >= BATCH_SIZE:
@@ -87,11 +89,11 @@ class FirestoreUuidTable(object):
             print ("No mapping found for: {}, assigning UUID: {}".format(data, new_uuid))
             self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)).set(
                 {
-                    "uuid" : new_uuid
+                    _UUID_KEY_NAME : new_uuid
                 }
             )
         else:
-            new_uuid = uuid_doc_ref.get("uuid")
+            new_uuid = uuid_doc_ref.get(_UUID_KEY_NAME)
 
         return new_uuid
     
@@ -101,10 +103,31 @@ class FirestoreUuidTable(object):
         uuid_col_ref = self._client.collection(u'tables/{}/mappings'.format(self._table_name))
 
         # Create a query against the collection
-        query_ref = uuid_col_ref.where(u'uuid', u'==', uuid_to_lookup)
-        if not query_ref.exists:
-            raise LookupError()
-        return query_ref.get()
+        query_ref = uuid_col_ref.where(_UUID_KEY_NAME, u'==', uuid_to_lookup)
+
+        # Execute the query, and return the first uuid found
+        # The API doesn't have a get first method, so this
+        # unusual iterator extractor is needed 
+        for result in query_ref.get():
+            return result.id
+        raise LookupError() 
+
+    def uuid_to_data_batch(self, uuids_to_lookup):
+        # Search for the UUID
+        # Return a mapping data for the uuids that were in the collection
+        reverse_mappings = dict() 
+        for mapping in self._client.collection(u'tables/{}/mappings'.format(self._table_name)).get():
+            reverse_mappings[mapping.get(_UUID_KEY_NAME)] = mapping.id
+        
+        print (f"loaded {len(reverse_mappings)} mappings")
+
+        results = {}
+        for uuid_lookup in uuids_to_lookup:
+            if uuid_lookup in reverse_mappings.keys():
+                results[uuid_lookup] = reverse_mappings[uuid_lookup]
+
+        print (f"found keys for {len(results)} out of {len(uuids_to_lookup)} requests")
+        return results
 
     @staticmethod
     def generate_new_uuid(prefix):
