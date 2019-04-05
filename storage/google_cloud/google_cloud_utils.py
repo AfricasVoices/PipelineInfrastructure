@@ -5,7 +5,7 @@ from google.cloud import storage
 
 def download_blob_to_string(bucket_credentials_file_path, blob_url):
     """
-    Downloads the contents of a Google Cloud blob to a string.
+    Downloads the contents of a Google Cloud Storage blob to a string.
 
     :param bucket_credentials_file_path: Path to a credentials file for accessing the bucket.
     :type bucket_credentials_file_path: str
