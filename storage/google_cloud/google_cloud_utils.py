@@ -25,6 +25,6 @@ def download_blob_to_string(bucket_credentials_file_path, blob_url):
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
     blob_contents = blob.download_as_string().decode("utf-8")
-    print("Downloaded blob.")
+    print(f"Downloaded blob ({len(blob_contents)} characters).")
 
     return blob_contents
