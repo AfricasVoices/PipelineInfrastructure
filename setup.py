@@ -7,6 +7,7 @@ setup(
     
     packages=find_packages(exclude=("test",)),
     
-    install_requires=["firebase_admin", "google-cloud-firestore", "google-api-python-client", "oauth2client"],
+    install_requires=["firebase_admin", "google-cloud-firestore", "google-cloud-storage", "google-api-python-client",
+                      "oauth2client"],
     python_requires='>=3.6.0'
 )
