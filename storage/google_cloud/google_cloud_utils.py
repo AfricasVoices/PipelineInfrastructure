@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 from google.cloud import storage
 
 
-def _blob_from_url(storage_client, blob_url):
+def _blob_at_url(storage_client, blob_url):
     parsed_blob_url = urlparse(blob_url)
     assert parsed_blob_url.scheme == "gs", "DriveCredentialsFileURL needs to be a gs " \
                                            "URL (i.e. of the form gs://bucket-name/blob-name)"
@@ -28,7 +28,7 @@ def download_blob_to_string(bucket_credentials_file_path, blob_url):
     """
     print(f"Downloading blob '{blob_url}' to string...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
-    blob = _blob_from_url(storage_client, blob_url)
+    blob = _blob_at_url(storage_client, blob_url)
     blob_contents = blob.download_as_string().decode("utf-8")
     print(f"Downloaded blob to string ({len(blob_contents)} characters).")
 
@@ -48,6 +48,6 @@ def upload_string_to_blob(bucket_credentials_file_path, blob_url, string):
     """
     print(f"Uploading string to blob '{blob_url}' ({len(string)} characters)...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
-    blob = _blob_from_url(storage_client, blob_url)
+    blob = _blob_at_url(storage_client, blob_url)
     blob.upload_from_string(string)
     print("Uploaded string to blob.")
