@@ -35,19 +35,19 @@ def download_blob_to_string(bucket_credentials_file_path, blob_url):
     return blob_contents
 
 
-def upload_string_to_blob(bucket_credentials_file_path, blob_url, string):
+def upload_string_to_blob(bucket_credentials_file_path, target_blob_url, string):
     """
     Uploads a string to a Google Cloud Storage blob.
 
     :param bucket_credentials_file_path: Path to a credentials file for accessing the bucket.
     :type bucket_credentials_file_path: str
-    :param blob_url: gs URL to the blob to upload to (i.e. of the form gs://<bucket-name>/<blob-name>).
-    :type blob_url: str
+    :param target_blob_url: gs URL to the blob to upload to (i.e. of the form gs://<bucket-name>/<blob-name>).
+    :type target_blob_url: str
     :param string: String to upload
     :type string: str
     """
-    print(f"Uploading string to blob '{blob_url}' ({len(string)} characters)...")
+    print(f"Uploading string to blob '{target_blob_url}' ({len(string)} characters)...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
-    blob = _blob_at_url(storage_client, blob_url)
+    blob = _blob_at_url(storage_client, target_blob_url)
     blob.upload_from_string(string)
     print("Uploaded string to blob.")
