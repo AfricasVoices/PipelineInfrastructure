@@ -37,7 +37,7 @@ class FirestoreUuidTable(object):
         new_mappings_needed = set_of_data_requested.difference(
             set(existing_mappings.keys()))
 
-        log.infos("New mappings needed: {}".format(len(new_mappings_needed)))
+        log.info("New mappings needed: {}".format(len(new_mappings_needed)))
 
         new_mappings = dict()
         for data in new_mappings_needed:
