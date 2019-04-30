@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 firebase_admin = "*"
 google-cloud-firestore = "*"
-
+coredatamodules = {editable = true,git = "https://www.github.com/AfricasVoices/CoreDataModules",ref = "v0.9.1"}
 
 [dev-packages]
 

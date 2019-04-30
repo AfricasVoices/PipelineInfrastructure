@@ -21,6 +21,43 @@ class FirestoreUuidTable(object):
         self._table_name = table_name
         self._uuid_prefix = uuid_prefix
 
+    def set_mappings(self, mappings):
+        """
+        Sets uuids for data items using the given table of mapping.
+
+        :param mappings: Mappings from data to uuids
+        :type mappings: dict of str -> str
+        """
+        print(f"Setting {len(mappings)} mappings...")
+
+        # Ensure that the requested uuids are in the correct format for this table
+        for uuid in mappings.values():
+            assert uuid.startswith(self._uuid_prefix), f"UUID {uuid} does not start with the uuid prefix {self._uuid_prefix}"
+
+        # Batch write the mappings
+        total_count_to_write = len(mappings)
+        i = 0
+        batch_counter = 0
+        batch = self._client.batch()
+        for data in mappings.keys():
+            i += 1
+            batch.set(
+                self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)),
+                {
+                    _UUID_KEY_NAME: mappings[data]
+                })
+            batch_counter += 1
+            if batch_counter >= BATCH_SIZE:
+                batch.commit()
+                print(
+                    "Batch of {} mappings committed, progress: {} / {}".format(batch_counter, i, total_count_to_write))
+                batch_counter = 0
+                batch = self._client.batch()
+
+        if batch_counter > 0:
+            batch.commit()
+            print("Final batch of {} mappings committed".format(batch_counter))
+
     def data_to_uuid_batch(self, list_of_data_requested):
         # Stream the datastore to a local copy
         # Seperate out the mappings of existing items
