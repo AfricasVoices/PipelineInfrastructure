@@ -1,21 +1,17 @@
+import os
+
 import google.oauth2.service_account
 import googleapiclient.discovery
+from core_data_modules.logging import Logger
 from googleapiclient.http import MediaFileUpload
-
-import logging
-import os
-import sys
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
 _drive_service = None
 
-log = logging.getLogger('dcw')
-log.setLevel(logging.INFO)
-consoleHandler = logging.StreamHandler(sys.stdout)
-consoleHandler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-log.addHandler(consoleHandler)
+log = Logger(__name__)
+
 
 def init_client_from_file(service_account_credentials_file):
     global _drive_service
@@ -26,7 +22,7 @@ def init_client_from_file(service_account_credentials_file):
         exit(1)
 
     _drive_service = googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
-    
+
 def init_client_from_info(service_account_credentials_info):
     global _drive_service
 
@@ -114,7 +110,7 @@ def _get_shared_folder_id(name):
 def _get_path_id(path, recursive=False, target_folder_is_shared_with_me=False):
     folders = _split_path(path)
     folder_id = None
-    
+
     if (target_folder_is_shared_with_me):
         if (len(folders) == 0):
             log.error('Missing target folder name which necessary when looking for a shared-with-me type folder')
@@ -123,7 +119,7 @@ def _get_path_id(path, recursive=False, target_folder_is_shared_with_me=False):
         folders.remove(folders[0])
     else:
         folder_id = _get_root_id()
-    
+
     for folder in folders:
         folder_id = _get_folder_id(folder, folder_id, recursive)
     return folder_id
