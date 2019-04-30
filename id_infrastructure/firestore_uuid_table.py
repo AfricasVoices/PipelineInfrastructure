@@ -23,7 +23,7 @@ class FirestoreUuidTable(object):
 
     def set_mappings(self, mappings):
         """
-        Sets uuids for data items using the given table of mapping.
+        Sets uuids for data items using the given table of mappings from data to uuids.
 
         :param mappings: Mappings from data to uuids
         :type mappings: dict of str -> str
