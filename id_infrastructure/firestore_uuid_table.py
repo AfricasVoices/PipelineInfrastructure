@@ -1,19 +1,20 @@
-import json
+import uuid
 
 import firebase_admin
+from core_data_modules.logging import Logger
 from firebase_admin import credentials
 from firebase_admin import firestore
-
-import uuid
 
 BATCH_SIZE = 500
 _UUID_KEY_NAME = "uuid"
 
+log = Logger(__name__)
 
-"""
-Mapping table between a string and a random UUID backed by Firestore
-"""
+
 class FirestoreUuidTable(object):
+    """
+    Mapping table between a string and a random UUID backed by Firestore
+    """
     def __init__(self, table_name, crypto_token_path, uuid_prefix):
         cred = credentials.Certificate(crypto_token_path)
         firebase_admin.initialize_app(cred)
@@ -23,7 +24,7 @@ class FirestoreUuidTable(object):
 
     def data_to_uuid_batch(self, list_of_data_requested):
         # Stream the datastore to a local copy
-        # Seperate out the mappings of existing items
+        # Separate out the mappings of existing items
         # Compute new mappings
         # Bulk update the data store
         # Return the mapping table
@@ -36,7 +37,7 @@ class FirestoreUuidTable(object):
         new_mappings_needed = set_of_data_requested.difference(
             set(existing_mappings.keys()))
 
-        print ("new_mappings_needed: {}".format(len(new_mappings_needed)))
+        log.infos("New mappings needed: {}".format(len(new_mappings_needed)))
 
         new_mappings = dict()
         for data in new_mappings_needed:
@@ -57,13 +58,13 @@ class FirestoreUuidTable(object):
             batch_counter += 1
             if batch_counter >= BATCH_SIZE:
                 batch.commit()
-                print ("Batch of {} messages committed, progress: {} / {}".format(batch_counter, i, total_count_to_write))
+                log.info("Batch of {} mappings committed, progress: {} / {}".format(batch_counter, i, total_count_to_write))
                 batch_counter = 0
                 batch = self._client.batch()
         
         if batch_counter > 0:
             batch.commit()
-            print ("Final batch of {} messages committed".format(batch_counter))
+            log.info("Final batch of {} mappings committed".format(batch_counter))
         
         existing_mappings.update(new_mappings)
         
@@ -82,11 +83,11 @@ class FirestoreUuidTable(object):
 
         exists = uuid_doc_ref.exists
 
-        print ("Ref: {}, exists: {}".format(uuid_doc_ref, exists))
+        log.info("Ref: {}, exists: {}".format(uuid_doc_ref, exists))
 
         if exists == False:
             new_uuid = FirestoreUuidTable.generate_new_uuid(self._uuid_prefix)
-            print ("No mapping found for: {}, assigning UUID: {}".format(data, new_uuid))
+            log.info("No mapping found for: {}, assigning UUID: {}".format(data, new_uuid))
             self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)).set(
                 {
                     _UUID_KEY_NAME : new_uuid
@@ -119,14 +120,14 @@ class FirestoreUuidTable(object):
         for mapping in self._client.collection(u'tables/{}/mappings'.format(self._table_name)).get():
             reverse_mappings[mapping.get(_UUID_KEY_NAME)] = mapping.id
         
-        print (f"loaded {len(reverse_mappings)} mappings")
+        log.info(f"loaded {len(reverse_mappings)} mappings")
 
         results = {}
         for uuid_lookup in uuids_to_lookup:
             if uuid_lookup in reverse_mappings.keys():
                 results[uuid_lookup] = reverse_mappings[uuid_lookup]
 
-        print (f"found keys for {len(results)} out of {len(uuids_to_lookup)} requests")
+        log.info(f"found keys for {len(results)} out of {len(uuids_to_lookup)} requests")
         return results
 
     @staticmethod
