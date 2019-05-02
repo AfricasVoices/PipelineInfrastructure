@@ -1,19 +1,20 @@
-import json
+import uuid
 
 import firebase_admin
+from core_data_modules.logging import Logger
 from firebase_admin import credentials
 from firebase_admin import firestore
-
-import uuid
 
 BATCH_SIZE = 500
 _UUID_KEY_NAME = "uuid"
 
+log = Logger(__name__)
 
-"""
-Mapping table between a string and a random UUID backed by Firestore
-"""
+
 class FirestoreUuidTable(object):
+    """
+    Mapping table between a string and a random UUID backed by Firestore
+    """
     def __init__(self, table_name, crypto_token_path, uuid_prefix):
         cred = credentials.Certificate(crypto_token_path)
         firebase_admin.initialize_app(cred)
@@ -23,20 +24,20 @@ class FirestoreUuidTable(object):
 
     def data_to_uuid_batch(self, list_of_data_requested):
         # Stream the datastore to a local copy
-        # Seperate out the mappings of existing items
+        # Separate out the mappings of existing items
         # Compute new mappings
         # Bulk update the data store
         # Return the mapping table
-
+        log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items...")
         existing_mappings = dict() 
-        for mapping in self._client.collection(u'tables/{}/mappings'.format(self._table_name)).get():
+        for mapping in self._client.collection(f"tables/{self._table_name}/mappings").get():
             existing_mappings[mapping.id] = mapping.get(_UUID_KEY_NAME)
 
         set_of_data_requested = set(list_of_data_requested)
         new_mappings_needed = set_of_data_requested.difference(
             set(existing_mappings.keys()))
 
-        print ("new_mappings_needed: {}".format(len(new_mappings_needed)))
+        log.info(f"Loaded {len(existing_mappings)} existing mappings. New mappings needed: {len(new_mappings_needed)}")
 
         new_mappings = dict()
         for data in new_mappings_needed:
@@ -50,20 +51,20 @@ class FirestoreUuidTable(object):
         for data in new_mappings.keys():
             i += 1
             batch.set(
-                self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)),
+                self._client.document(f"tables/{self._table_name}/mappings/{data}"),
                 {
-                    _UUID_KEY_NAME : new_mappings[data]
+                    _UUID_KEY_NAME: new_mappings[data]
                 })
             batch_counter += 1
             if batch_counter >= BATCH_SIZE:
                 batch.commit()
-                print ("Batch of {} messages committed, progress: {} / {}".format(batch_counter, i, total_count_to_write))
+                log.info(f"Batch of {batch_counter} mappings committed, progress: {i} / {total_count_to_write}")
                 batch_counter = 0
                 batch = self._client.batch()
         
         if batch_counter > 0:
             batch.commit()
-            print ("Final batch of {} messages committed".format(batch_counter))
+            log.info(f"Final batch of {batch_counter} mappings committed")
         
         existing_mappings.update(new_mappings)
         
@@ -78,18 +79,18 @@ class FirestoreUuidTable(object):
         # If it does return the UUID
         # If it doesn't, create a new UUID, store it
         # block until the store completes return the new UUID
-        uuid_doc_ref = self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)).get()
+        uuid_doc_ref = self._client.document(f"tables/{self._table_name}/mappings/{data}").get()
 
         exists = uuid_doc_ref.exists
 
-        print ("Ref: {}, exists: {}".format(uuid_doc_ref, exists))
+        log.info(f"Ref: {uuid_doc_ref}, exists: {exists}")
 
-        if exists == False:
+        if not exists:
             new_uuid = FirestoreUuidTable.generate_new_uuid(self._uuid_prefix)
-            print ("No mapping found for: {}, assigning UUID: {}".format(data, new_uuid))
-            self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)).set(
+            log.info(f"No mapping found for: {data}, assigning UUID: {new_uuid}")
+            self._client.document(f"tables/{self._table_name}/mappings/{data}").set(
                 {
-                    _UUID_KEY_NAME : new_uuid
+                    _UUID_KEY_NAME: new_uuid
                 }
             )
         else:
@@ -100,10 +101,10 @@ class FirestoreUuidTable(object):
     def uuid_to_data(self, uuid_to_lookup):
         # Search for the UUID
         # return the data or fail
-        uuid_col_ref = self._client.collection(u'tables/{}/mappings'.format(self._table_name))
+        uuid_col_ref = self._client.collection(f"tables/{self._table_name}/mappings")
 
         # Create a query against the collection
-        query_ref = uuid_col_ref.where(_UUID_KEY_NAME, u'==', uuid_to_lookup)
+        query_ref = uuid_col_ref.where(_UUID_KEY_NAME, u"==", uuid_to_lookup)
 
         # Execute the query, and return the first uuid found
         # The API doesn't have a get first method, so this
@@ -115,18 +116,19 @@ class FirestoreUuidTable(object):
     def uuid_to_data_batch(self, uuids_to_lookup):
         # Search for the UUID
         # Return a mapping data for the uuids that were in the collection
-        reverse_mappings = dict() 
-        for mapping in self._client.collection(u'tables/{}/mappings'.format(self._table_name)).get():
+        log.info(f"Looking up the data for {len(uuids_to_lookup)} uuids...")
+        reverse_mappings = dict()
+        for mapping in self._client.collection(f"tables/{self._table_name}/mappings").get():
             reverse_mappings[mapping.get(_UUID_KEY_NAME)] = mapping.id
         
-        print (f"loaded {len(reverse_mappings)} mappings")
+        log.info(f"Loaded {len(reverse_mappings)} mappings")
 
         results = {}
         for uuid_lookup in uuids_to_lookup:
             if uuid_lookup in reverse_mappings.keys():
                 results[uuid_lookup] = reverse_mappings[uuid_lookup]
 
-        print (f"found keys for {len(results)} out of {len(uuids_to_lookup)} requests")
+        log.info(f"Found keys for {len(results)} out of {len(uuids_to_lookup)} requests")
         return results
 
     @staticmethod

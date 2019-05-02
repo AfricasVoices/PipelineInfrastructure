@@ -1,6 +1,9 @@
 from urllib.parse import urlparse
 
 from google.cloud import storage
+from core_data_modules.logging import Logger
+
+log = Logger(__name__)
 
 
 def _blob_at_url(storage_client, blob_url):
@@ -26,11 +29,11 @@ def download_blob_to_string(bucket_credentials_file_path, blob_url):
     :return: Contents of the requested blob.
     :rtype: str
     """
-    print(f"Downloading blob '{blob_url}' to string...")
+    log.info(f"Downloading blob '{blob_url}' to string...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
     blob = _blob_at_url(storage_client, blob_url)
     blob_contents = blob.download_as_string().decode("utf-8")
-    print(f"Downloaded blob to string ({len(blob_contents)} characters).")
+    log.info(f"Downloaded blob to string ({len(blob_contents)} characters).")
 
     return blob_contents
 
@@ -46,8 +49,8 @@ def upload_string_to_blob(bucket_credentials_file_path, target_blob_url, string)
     :param string: String to upload
     :type string: str
     """
-    print(f"Uploading string to blob '{target_blob_url}' ({len(string)} characters)...")
+    log.info(f"Uploading string to blob '{target_blob_url}' ({len(string)} characters)...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
     blob = _blob_at_url(storage_client, target_blob_url)
     blob.upload_from_string(string)
-    print("Uploaded string to blob.")
+    log.info("Uploaded string to blob.")
