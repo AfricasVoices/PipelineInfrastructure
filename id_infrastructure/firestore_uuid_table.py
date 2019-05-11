@@ -22,6 +22,12 @@ class FirestoreUuidTable(object):
         self._table_name = table_name
         self._uuid_prefix = uuid_prefix
 
+    @classmethod
+    def from_client(self, table_name, client, uuid_prefix):
+        self._client = client
+        self._table_name = table_name
+        self._uuid_prefix = uuid_prefix
+
     def data_to_uuid_batch(self, list_of_data_requested):
         # Stream the datastore to a local copy
         # Separate out the mappings of existing items
