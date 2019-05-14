@@ -29,7 +29,7 @@ class FirestoreUuidTable(object):
         :param mappings: Mappings from data to uuids
         :type mappings: dict of str -> str
         """
-        print(f"Setting {len(mappings)} mappings...")
+        log.info(f"Setting {len(mappings)} mappings...")
 
         # Ensure that the requested uuids are in the correct format for this table
         for uuid in mappings.values():
@@ -50,14 +50,13 @@ class FirestoreUuidTable(object):
             batch_counter += 1
             if batch_counter >= BATCH_SIZE:
                 batch.commit()
-                print(
-                    "Batch of {} mappings committed, progress: {} / {}".format(batch_counter, i, total_count_to_write))
+                log.info(f"Batch of {batch_counter} mappings committed, progress: {i} / {total_count_to_write}")
                 batch_counter = 0
                 batch = self._client.batch()
 
         if batch_counter > 0:
             batch.commit()
-            print("Final batch of {} mappings committed".format(batch_counter))
+            log.info("Final batch of {} mappings committed".format(batch_counter))
 
     def data_to_uuid_batch(self, list_of_data_requested):
         # Stream the datastore to a local copy
