@@ -22,7 +22,7 @@ class FirestoreUuidTable(object):
         self._table_name = table_name
         self._uuid_prefix = uuid_prefix
 
-    def set_mappings(self, mappings):
+    def update_data_to_uuid_mappings(self, mappings):
         """
         Sets uuids for data items using the given table of mappings from data to uuids.
 

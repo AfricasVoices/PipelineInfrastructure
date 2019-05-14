@@ -45,5 +45,5 @@ if __name__ == "__main__":
     log.info(f"Prepared {len(firestore_mappings)} for upload")
 
     log.info(f"Uploading the mappings to Firestore table...")
-    firestore_phone_number_uuid_table.set_mappings(firestore_mappings)
+    firestore_phone_number_uuid_table.update_data_to_uuid_mappings(firestore_mappings)
     log.info("Migration complete")
