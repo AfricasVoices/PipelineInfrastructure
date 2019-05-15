@@ -22,30 +22,48 @@ class FirestoreUuidTable(object):
         self._table_name = table_name
         self._uuid_prefix = uuid_prefix
 
-    def update_data_to_uuid_mappings(self, mappings):
+    def update_data_to_uuid_mappings(self, updated_mappings):
         """
         Sets uuids for data items using the given table of mappings from data to uuids.
 
-        :param mappings: Mappings from data to uuids
-        :type mappings: dict of str -> str
+        Data which is already in Firestore must have the same id as requested in the new mapping table, otherwise the
+        function will fail with an AssertionError.
+
+        :param updated_mappings: Mappings from data to uuids
+        :type updated_mappings: dict of str -> str
         """
-        log.info(f"Setting {len(mappings)} mappings...")
+        log.info(f"Updating {len(updated_mappings)} mappings...")
 
         # Ensure that the requested uuids are in the correct format for this table
-        for uuid in mappings.values():
+        for uuid in updated_mappings.values():
             assert uuid.startswith(self._uuid_prefix), f"UUID {uuid} does not start with the uuid prefix {self._uuid_prefix}"
 
-        # Batch write the mappings
-        total_count_to_write = len(mappings)
+        # Download the existing mappings
+        log.info("Downloading the existing mappings...")
+        existing_mappings = dict()
+        for mapping in self._client.collection(f"tables/{self._table_name}/mappings").get():
+            existing_mappings[mapping.id] = mapping.get(_UUID_KEY_NAME)
+        log.info(f"Downloaded {len(existing_mappings)} existing mappings")
+
+        # Check that all the existing mappings match those in the table, and drop them from the table to map if not
+        log.info("Checking existing mappings...")
+        for data, uuid in list(updated_mappings.items()):
+            if data in existing_mappings:
+                assert existing_mappings[data] == uuid, "Attempted to set a new, conflicting uuid for an existing data item"
+                del updated_mappings[data]
+        log.info(f"Checked existing mappings: {len(updated_mappings)} mappings are new and require updating")
+
+        # Batch write the updated_mappings
+        total_count_to_write = len(updated_mappings)
         i = 0
         batch_counter = 0
         batch = self._client.batch()
-        for data in mappings.keys():
+        for data in updated_mappings.keys():
             i += 1
             batch.set(
                 self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)),
                 {
-                    _UUID_KEY_NAME: mappings[data]
+                    _UUID_KEY_NAME: updated_mappings[data]
                 })
             batch_counter += 1
             if batch_counter >= BATCH_SIZE:
