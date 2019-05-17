@@ -45,25 +45,30 @@ class FirestoreUuidTable(object):
             existing_mappings[mapping.id] = mapping.get(_UUID_KEY_NAME)
         log.info(f"Downloaded {len(existing_mappings)} existing mappings")
 
-        # Check that all the existing mappings match those in the table, and drop them from the table to map if not
-        log.info("Checking existing mappings...")
+        # Check that all the existing mappings match those in the table, and prepare a table of new mappings to update
+        log.info("Checking existing mappings and preparing a table of only the new mappings...")
+        new_mappings = dict()
         for data, uuid in list(updated_mappings.items()):
             if data in existing_mappings:
                 assert existing_mappings[data] == uuid, "Attempted to set a new, conflicting uuid for an existing data item"
-                del updated_mappings[data]
-        log.info(f"Checked existing mappings: {len(updated_mappings)} mappings are new and require updating")
+            else:
+                new_mappings[data] = uuid
+        log.info(f"Checked existing mappings: {len(new_mappings)} mappings are new and require updating")
+        
+        if len(new_mappings) == 0:
+            return
 
         # Batch write the updated_mappings
-        total_count_to_write = len(updated_mappings)
+        total_count_to_write = len(new_mappings)
         i = 0
         batch_counter = 0
         batch = self._client.batch()
-        for data in updated_mappings.keys():
+        for data in new_mappings.keys():
             i += 1
             batch.set(
                 self._client.document(u'tables/{}/mappings/{}'.format(self._table_name, data)),
                 {
-                    _UUID_KEY_NAME: updated_mappings[data]
+                    _UUID_KEY_NAME: new_mappings[data]
                 })
             batch_counter += 1
             if batch_counter >= BATCH_SIZE:
@@ -75,6 +80,19 @@ class FirestoreUuidTable(object):
         if batch_counter > 0:
             batch.commit()
             log.info("Final batch of {} mappings committed".format(batch_counter))
+
+        # Check that the migration was successful by downloading all the mappings and checking them again
+        log.info("Downloading the existing mappings, so that the upload can be verified...")
+        existing_mappings = dict()
+        for mapping in self._client.collection(f"tables/{self._table_name}/mappings").get():
+            existing_mappings[mapping.id] = mapping.get(_UUID_KEY_NAME)
+        log.info(f"Downloaded {len(existing_mappings)} existing mappings")
+
+        log.info("Checking that the migration was successful...")
+        for data, uuid in updated_mappings.items():
+            assert data in existing_mappings
+            assert existing_mappings[data] == uuid
+        log.info(f"Migration was successful ({len(updated_mappings)} mappings checked)")
 
     def data_to_uuid_batch(self, list_of_data_requested):
         # Stream the datastore to a local copy
