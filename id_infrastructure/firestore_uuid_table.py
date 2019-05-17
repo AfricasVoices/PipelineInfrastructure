@@ -90,8 +90,8 @@ class FirestoreUuidTable(object):
 
         log.info("Checking that the migration was successful...")
         for data, uuid in updated_mappings.items():
-            assert data in existing_mappings
-            assert existing_mappings[data] == uuid
+            assert data in existing_mappings, f"Verification error: {data} was not found on Firestore"
+            assert existing_mappings[data] == uuid, f"Verification error: {data} has a conflicting id on Firestore"
         log.info(f"Migration was successful ({len(updated_mappings)} mappings checked)")
 
     def data_to_uuid_batch(self, list_of_data_requested):
