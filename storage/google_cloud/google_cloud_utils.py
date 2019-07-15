@@ -64,7 +64,7 @@ def download_blob_to_file(bucket_credentials_file_path, blob_url, f):
     :type bucket_credentials_file_path: str
     :param blob_url: gs URL to the blob to download (i.e. of the form gs://<bucket-name>/<blob-name>).
     :type blob_url: str
-    :param f: File to download the blob to.
+    :param f: File to download the blob to, opened in binary mode.
     :type f: file-like
     """
     log.info(f"Downloading blob '{blob_url}' to file...")
@@ -82,7 +82,7 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f):
     :type bucket_credentials_file_path: str
     :param target_blob_url: gs URL to the blob to upload to (i.e. of the form gs://<bucket-name>/<blob-name>).
     :type target_blob_url: str
-    :param f: File to upload.
+    :param f: File to upload, opened in binary mode.
     :type f: file-like
     """
     log.info(f"Uploading file to blob '{target_blob_url}'...")
