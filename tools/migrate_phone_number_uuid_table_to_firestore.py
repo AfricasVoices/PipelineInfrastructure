@@ -3,7 +3,7 @@ import argparse
 from core_data_modules.logging import Logger
 from core_data_modules.util import PhoneNumberUuidTable
 
-from firestore_uuid_table import FirestoreUuidTable
+from id_infrastructure.firestore_uuid_table import FirestoreUuidTable
 
 log = Logger(__name__)
 
