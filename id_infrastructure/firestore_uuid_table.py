@@ -32,6 +32,9 @@ class FirestoreUuidTable(object):
         :param updated_mappings: Mappings from data to uuids
         :type updated_mappings: dict of str -> str
         """
+
+        assert "Not safe to use as not yet protected against readtimeouts"
+
         log.info(f"Updating {len(updated_mappings)} mappings...")
 
         # Ensure that the requested uuids are in the correct format for this table
