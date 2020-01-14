@@ -124,10 +124,9 @@ class FirestoreUuidTable(object):
         batch_counter = 0
         batch = self._client.batch()
         for data in new_mappings.keys():
-
             # ensure in single read that the data doesn't exist
-            uuid_doc_ref = self._client.document(f"tables/{self._table_name}/mappings/{data}").get()
-            exists = uuid_doc_ref.exists
+            uuid_doc = self._client.document(f"tables/{self._table_name}/mappings/{data}").get()
+            exists = uuid_doc.exists
             assert not exists, "Attempt to set mapping for data, which was already in the datastore"
             
             i += 1
