@@ -32,6 +32,9 @@ class FirestoreUuidTable(object):
         :param updated_mappings: Mappings from data to uuids
         :type updated_mappings: dict of str -> str
         """
+
+        assert "Not safe to use as not yet protected against readtimeouts"
+
         log.info(f"Updating {len(updated_mappings)} mappings...")
 
         # Ensure that the requested uuids are in the correct format for this table
@@ -121,6 +124,11 @@ class FirestoreUuidTable(object):
         batch_counter = 0
         batch = self._client.batch()
         for data in new_mappings.keys():
+            # ensure in single read that the data doesn't exist
+            uuid_doc = self._client.document(f"tables/{self._table_name}/mappings/{data}").get()
+            exists = uuid_doc.exists
+            assert not exists, "Attempt to set mapping for data which was already in the datastore"
+            
             i += 1
             batch.set(
                 self._client.document(f"tables/{self._table_name}/mappings/{data}"),
