@@ -1,8 +1,10 @@
 import os
+import time
 
 import google.oauth2.service_account
 import googleapiclient.discovery
 from core_data_modules.logging import Logger
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 # If modifying these scopes, delete the file token.json.
@@ -191,26 +193,41 @@ def _create_file(source_file_path, target_folder_id, target_file_name=None):
 
 
 def update_or_create(source_file_path, target_folder_path, target_file_name=None, recursive=False,
-                     target_folder_is_shared_with_me=False):
-    if target_file_name is None:
-        target_file_name = os.path.basename(source_file_path)
+                     target_folder_is_shared_with_me=False, max_retries=2, backoff_seconds=1):
+    try:
+        if target_file_name is None:
+            target_file_name = os.path.basename(source_file_path)
 
-    target_folder_id = _get_path_id(target_folder_path, recursive, target_folder_is_shared_with_me)
-    files = _list_folder_id(target_folder_id)
-    files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
+        target_folder_id = _get_path_id(target_folder_path, recursive, target_folder_is_shared_with_me)
+        files = _list_folder_id(target_folder_id)
+        files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
 
-    if len(files_with_upload_name) > 1:
-        log.error("Multiple files with the same name found in Drive folder.")
-        log.error("I don't know which to update, aborting.")
-        exit(1)
-
-    if len(files_with_upload_name) == 1:
-        existing_file = files_with_upload_name[0]
-        # Make sure it's not a folder
-        if existing_file.get("mimetype") == "application/vnd.google-apps.folder":
-            log.error(f"Attempting to replace a folder with a file with name '{target_file_name}'")
+        if len(files_with_upload_name) > 1:
+            log.error("Multiple files with the same name found in Drive folder.")
+            log.error("I don't know which to update, aborting.")
             exit(1)
-        _update_file(source_file_path, existing_file.get("id"))
-        return
 
-    _create_file(source_file_path, target_folder_id, target_file_name)
+        if len(files_with_upload_name) == 1:
+            existing_file = files_with_upload_name[0]
+            # Make sure it's not a folder
+            if existing_file.get("mimetype") == "application/vnd.google-apps.folder":
+                log.error(f"Attempting to replace a folder with a file with name '{target_file_name}'")
+                exit(1)
+            _update_file(source_file_path, existing_file.get("id"))
+            return
+
+        _create_file(source_file_path, target_folder_id, target_file_name)
+    except HttpError as ex:
+        # Handle 500 errors with exponentiated back-off, as recommended by the Drive docs for this error.
+        if ex.resp.status != 500:
+            raise ex
+
+        log.info(f"Upload failed with HttpError '{ex.error_details}'")
+        if max_retries > 0:
+            log.info(f"Retrying up to {max_retries} more times, after {backoff_seconds}...")
+            time.sleep(backoff_seconds)
+            update_or_create(source_file_path, target_folder_path, target_file_name, recursive,
+                             target_folder_is_shared_with_me, max_retries - 1, backoff_seconds * 2)
+        else:
+            log.warning("Retried the maximum number of times")
+            raise ex
