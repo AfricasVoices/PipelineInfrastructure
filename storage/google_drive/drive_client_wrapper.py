@@ -229,5 +229,5 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
             update_or_create(source_file_path, target_folder_path, target_file_name, recursive,
                              target_folder_is_shared_with_me, max_retries - 1, backoff_seconds * 2)
         else:
-            log.warning("Retried the maximum number of times")
+            log.error("Retried the maximum number of times")
             raise ex
