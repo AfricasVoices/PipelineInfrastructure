@@ -98,16 +98,18 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f):
         if ex.resp.status != 408:
             raise ex
 
-        num_retries = 0
-        chunk_sizes= [50, 25, 12.5, 6.25]
-        if num_retries != 5:
+        chunk_sizes = [50, 25, 12.5, 6.25]
+        num_tries = 0
+        if num_tries != 5:
             for chunk_size in chunk_sizes:
                 log.info(f"Retrying to upload file to blob '{target_blob_url}")
                 # lower the chunk size and retry uploading
                 blob.chunk_size = chunk_size * 1024 * 1024
-                blob.upload_from_file(f,)
-                num_retries +=1
-                log.info(f"Uploaded file to blob")
-        else:
-            log.error(f"Retried {num_retries} of times")
+                blob.upload_from_file(f)
+                if ex.resp.status == 200:
+                    log.info(f"Uploaded file to blob")
+                    break
+                num_tries += 1
+        else :
+            log.error(f"Retried 5 times")
             raise ex
