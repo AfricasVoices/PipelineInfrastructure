@@ -5,6 +5,8 @@ from core_data_modules.logging import Logger
 
 log = Logger(__name__)
 
+BLOB_CHUNK_SIZE = 10 * 1024 * 1024  # 10 MB
+
 
 def _blob_at_url(storage_client, blob_url):
     parsed_blob_url = urlparse(blob_url)
@@ -52,6 +54,7 @@ def upload_string_to_blob(bucket_credentials_file_path, target_blob_url, string)
     log.info(f"Uploading string to blob '{target_blob_url}' ({len(string)} characters)...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
     blob = _blob_at_url(storage_client, target_blob_url)
+    blob.chunk_size = BLOB_CHUNK_SIZE
     blob.upload_from_string(string)
     log.info("Uploaded string to blob.")
 
@@ -88,5 +91,6 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f):
     log.info(f"Uploading file to blob '{target_blob_url}'...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
     blob = _blob_at_url(storage_client, target_blob_url)
+    blob.chunk_size = BLOB_CHUNK_SIZE
     blob.upload_from_file(f)
     log.info(f"Uploaded file to blob")
