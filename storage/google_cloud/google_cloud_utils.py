@@ -2,6 +2,7 @@ from urllib.parse import urlparse
 
 from google.cloud import storage
 from core_data_modules.logging import Logger
+from googleapiclient.errors import HttpError
 
 log = Logger(__name__)
 
@@ -85,8 +86,30 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f):
     :param f: File to upload, opened in binary mode.
     :type f: file-like
     """
+
     log.info(f"Uploading file to blob '{target_blob_url}'...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
     blob = _blob_at_url(storage_client, target_blob_url)
-    blob.upload_from_file(f)
-    log.info(f"Uploaded file to blob")
+
+    try:
+        blob.upload_from_file(f)
+        log.info(f"Uploaded file to blob")
+
+    except HttpError as ex:
+        if ex.resp.status != 408:
+            raise ex
+
+        num_retries = 0
+        if num_retries > 7: # retry up-to the default of deprecated num_tries=6
+
+            log.info(f"Retrying no. {num_retries} to upload file to blob '{target_blob_url}")
+
+            # lower the default chunk size and retry uploading
+            blob.chunk_size = 50 * 1024 * 1024  # Set the chunks size to half the default size (100Mb)
+            blob.upload_from_file(f,)
+            num_retries +=1
+            log.info(f"Uploaded file to blob")
+
+        else:
+            log.error(f"Retried the {num_retries} of times")
+            raise ex
