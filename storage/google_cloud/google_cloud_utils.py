@@ -86,7 +86,6 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f):
     :param f: File to upload, opened in binary mode.
     :type f: file-like
     """
-
     log.info(f"Uploading file to blob '{target_blob_url}'...")
     storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
     blob = _blob_at_url(storage_client, target_blob_url)
@@ -100,16 +99,15 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f):
             raise ex
 
         num_retries = 0
-        if num_retries > 7: # retry up-to the default of deprecated num_tries=6
-
-            log.info(f"Retrying no. {num_retries} to upload file to blob '{target_blob_url}")
-
-            # lower the default chunk size and retry uploading
-            blob.chunk_size = 50 * 1024 * 1024  # Set the chunks size to half the default size (100Mb)
-            blob.upload_from_file(f,)
-            num_retries +=1
-            log.info(f"Uploaded file to blob")
-
+        chunk_sizes= [50, 25, 12.5, 6.25]
+        if num_retries != 5:
+            for chunk_size in chunk_sizes:
+                log.info(f"Retrying to upload file to blob '{target_blob_url}")
+                # lower the chunk size and retry uploading
+                blob.chunk_size = chunk_size * 1024 * 1024
+                blob.upload_from_file(f,)
+                num_retries +=1
+                log.info(f"Uploaded file to blob")
         else:
-            log.error(f"Retried the {num_retries} of times")
+            log.error(f"Retried {num_retries} of times")
             raise ex
