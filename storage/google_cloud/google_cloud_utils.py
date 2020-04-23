@@ -2,7 +2,7 @@ from urllib.parse import urlparse
 
 from google.cloud import storage
 from core_data_modules.logging import Logger
-from googleapiclient.errors import HttpError
+from requests import ConnectionError, Timeout
 import socket
 
 log = Logger(__name__)
@@ -76,7 +76,7 @@ def download_blob_to_file(bucket_credentials_file_path, blob_url, f):
     log.info(f"Downloaded blob to file")
 
 
-def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f):
+def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_retries=5, blob_chunk_size=100):
     """
     Uploads a file to a Google Cloud Storage blob.
 
@@ -87,31 +87,21 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f):
     :param f: File to upload, opened in binary mode.
     :type f: file-like
     """
-    log.info(f"Uploading file to blob '{target_blob_url}'...")
-    storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
-    blob = _blob_at_url(storage_client, target_blob_url)
-
     try:
+        log.info(f"Uploading file to blob '{target_blob_url}'...")
+        storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
+        blob = _blob_at_url(storage_client, target_blob_url)
+        blob.chunk_size = blob_chunk_size * 1024 * 1024
         blob.upload_from_file(f)
         log.info(f"Uploaded file to blob")
 
-    except HttpError or socket.timeout as ex:
-        if ex.resp.status not in [408, 504]:
-            raise ex
-
-        log.warning(f"Failed to upload due to {ex.resp.status}")
-        chunk_sizes = [50, 25, 12.5, 6.25]
-        num_tries = 0
-        if num_tries != 5:
-            for chunk_size in chunk_sizes:
-                log.info(f"Retrying to upload file to blob '{target_blob_url}")
-                # lower the chunk size and retry uploading
-                blob.chunk_size = chunk_size * 1024 * 1024
-                blob.upload_from_file(f)
-                if ex.resp.status == 200:
-                    log.info(f"Uploaded file to blob")
-                    break
-                num_tries += 1
-        else :
+    except ConnectionError or socket.timeout or Timeout as ex:
+        log.warning(f"Failed to upload due to {ex.resp.status} (connection error)")
+        if max_retries > 0:
+            log.info(f"Retrying {max_retries} more times with a reduced chunk_size of 10MiB")
+            # lower the chunk size and retry uploading
+            upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
+                                max_retries - 1, blob_chunk_size=10)
+        else:
             log.error(f"Retried 5 times")
             raise ex
