@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 from google.cloud import storage
 from core_data_modules.logging import Logger
 from googleapiclient.errors import HttpError
+import socket
 
 log = Logger(__name__)
 
@@ -94,10 +95,11 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f):
         blob.upload_from_file(f)
         log.info(f"Uploaded file to blob")
 
-    except HttpError as ex:
-        if ex.resp.status != 408:
+    except HttpError or socket.timeout as ex:
+        if ex.resp.status not in [408, 504]:
             raise ex
 
+        log.warning(f"Failed to upload due to {ex.resp.status}")
         chunk_sizes = [50, 25, 12.5, 6.25]
         num_tries = 0
         if num_tries != 5:
