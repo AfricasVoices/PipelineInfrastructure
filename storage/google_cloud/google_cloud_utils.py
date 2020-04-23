@@ -99,8 +99,8 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
         log.warning("Failed to upload due to connection error")
         if max_retries > 0:
             log.info(f"Retrying {max_retries} more times with a reduced chunk_size of 10MiB")
-            # lower the chunk size and retry uploading
-            upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
+            # lower the chunk size and start uploading from beginning resumable_media requires so
+            upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f.seek(0),
                                 max_retries - 1, blob_chunk_size=10)
         else:
             log.error(f"Retried 5 times")
