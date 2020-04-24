@@ -4,6 +4,7 @@ from google.cloud import storage
 from core_data_modules.logging import Logger
 from requests import ConnectionError, Timeout
 import socket
+import os
 
 log = Logger(__name__)
 
@@ -109,4 +110,5 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
                                 max_retries - 1, blob_chunk_size - 30)
         else:
             log.error(f"Retried 3 times")
+            os.rename(f, f'FAILED_{f}')
             raise ex
