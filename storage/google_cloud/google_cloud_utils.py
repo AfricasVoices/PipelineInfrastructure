@@ -102,7 +102,7 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
     except ConnectionError or socket.timeout or Timeout as ex:
         log.warning("Failed to upload due to connection error")
         if max_retries > 0:
-            log.info(f"Retrying {max_retries} more times with a reduced chunk_size of {blob_chunk_size}MiB")
+            log.info(f"Retrying {max_retries} more times with a reduced chunk_size of {blob_chunk_size - 30}MiB")
             # lower the chunk size and start uploading from beginning because resumable_media requires so
             f.seek(0)
             upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
