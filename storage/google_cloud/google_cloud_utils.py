@@ -110,5 +110,5 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
                                 max_retries - 1, blob_chunk_size - 30)
         else:
             log.error(f"Retried 3 times")
-            os.rename(f.name, f'FAILED_{f}')
+            os.rename(f.name, f'FAILED_{f.name}')
             raise ex
