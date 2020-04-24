@@ -76,7 +76,7 @@ def download_blob_to_file(bucket_credentials_file_path, blob_url, f):
     log.info(f"Downloaded blob to file")
 
 
-def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_retries=5, blob_chunk_size=100):
+def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_retries=3, blob_chunk_size=100.0):
     """
     Uploads a file to a Google Cloud Storage blob.
 
@@ -86,6 +86,10 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
     :type target_blob_url: str
     :param f: File to upload, opened in binary mode.
     :type f: file-like
+    :param max_retries: maximum number of times to retry uploading the file.
+    :type max_retries: int
+    :param blob_chunk_size: the size of a chunk of data whenever iterating (in MiB).
+    :type blob_chunk_size: float
     """
     try:
         log.info(f"Uploading file to blob '{target_blob_url}'...")
@@ -98,11 +102,11 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
     except ConnectionError or socket.timeout or Timeout as ex:
         log.warning("Failed to upload due to connection error")
         if max_retries > 0:
-            log.info(f"Retrying {max_retries} more times with a reduced chunk_size of 10MiB")
+            log.info(f"Retrying {max_retries} more times with a reduced chunk_size of {blob_chunk_size}MiB")
             # lower the chunk size and start uploading from beginning because resumable_media requires so
             f.seek(0)
             upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
-                                max_retries - 1, blob_chunk_size=10)
+                                max_retries - 1, blob_chunk_size/2)
         else:
-            log.error(f"Retried 5 times")
+            log.error(f"Retried 3 times")
             raise ex
