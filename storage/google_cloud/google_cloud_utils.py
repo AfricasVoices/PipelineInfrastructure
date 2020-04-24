@@ -76,7 +76,7 @@ def download_blob_to_file(bucket_credentials_file_path, blob_url, f):
     log.info(f"Downloaded blob to file")
 
 
-def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_retries=3, blob_chunk_size=100.0):
+def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_retries=3, blob_chunk_size=100):
     """
     Uploads a file to a Google Cloud Storage blob.
 
@@ -106,7 +106,7 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
             # lower the chunk size and start uploading from beginning because resumable_media requires so
             f.seek(0)
             upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
-                                max_retries - 1, blob_chunk_size/2)
+                                max_retries - 1, blob_chunk_size - 30)
         else:
             log.error(f"Retried 3 times")
             raise ex
