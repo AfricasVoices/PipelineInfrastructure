@@ -92,6 +92,9 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
     :param blob_chunk_size: the size of a chunk of data whenever iterating (in MiB).
     :type blob_chunk_size: float
     """
+
+    upload_status = None
+
     try:
         log.info(f"Uploading file to blob '{target_blob_url}'...")
         storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
@@ -100,8 +103,6 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
         blob.upload_from_file(f)
         log.info(f"Uploaded file to blob")
         upload_status = "success"
-
-        return upload_status
 
     except ConnectionError or socket.timeout or Timeout as ex:
         log.warning("Failed to upload due to connection error!")
@@ -115,4 +116,4 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
             log.error(f"Failed to upload after retrying 3 times!")
             upload_status = "failed"
 
-            return upload_status
+    return upload_status
