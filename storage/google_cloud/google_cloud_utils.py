@@ -104,7 +104,7 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
         return upload_status
 
     except ConnectionError or socket.timeout or Timeout as ex:
-        log.warning("Failed to upload due to connection error")
+        log.warning("Failed to upload due to connection error!")
         if max_retries > 0:
             log.info(f"Retrying {max_retries} more times with a reduced chunk_size of {blob_chunk_size - 30}MiB")
             # lower the chunk size and start uploading from beginning because resumable_media requires so
@@ -112,7 +112,7 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
             upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
                                 max_retries - 1, blob_chunk_size - 30)
         else:
-            log.error(f"Retried 3 times")
+            log.error(f"Failed to upload after retrying 3 times!")
             upload_status = "failed"
 
             return upload_status
