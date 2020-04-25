@@ -99,6 +99,9 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
         blob.chunk_size = blob_chunk_size * 1024 * 1024
         blob.upload_from_file(f)
         log.info(f"Uploaded file to blob")
+        upload_status = "success"
+
+        return upload_status
 
     except ConnectionError or socket.timeout or Timeout as ex:
         log.warning("Failed to upload due to connection error")
@@ -110,5 +113,6 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
                                 max_retries - 1, blob_chunk_size - 30)
         else:
             log.error(f"Retried 3 times")
-            os.rename(f.name, f'FAILED_{f.name}')
-            raise ex
+            upload_status = "failed"
+
+            return upload_status
