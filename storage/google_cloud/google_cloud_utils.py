@@ -104,7 +104,7 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
         log.info(f"Uploaded file to blob")
         upload_status = "success"
 
-    except (ConnectionError, socket.timeout, Timeout) as ex:
+    except (ConnectionError, socket.timeout, Timeout):
         log.warning("Failed to upload due to connection error!")
         if max_retries > 0:
             log.info(f"Retrying {max_retries} more times with a reduced chunk_size of {blob_chunk_size - 30}MiB")
