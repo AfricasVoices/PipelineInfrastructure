@@ -88,29 +88,31 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
     :type f: file-like
     :param max_retries: maximum number of times to retry uploading the file.
     :type max_retries: int
-    :param blob_chunk_size: the size of a chunk of data whenever iterating (in MiB).
-    :type blob_chunk_size: float
+    :param blob_chunk_size: the size of a chunk of data whenever iterating (in MiB). Default is 100 MiB.
+    :type blob_chunk_size: int
     """
     try:
         log.info(f"Uploading file to blob '{target_blob_url}'...")
         storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
         blob = _blob_at_url(storage_client, target_blob_url)
-        blob.chunk_size = blob_chunk_size * 1024 * 1024
+
+        # Check if blob_chunk_size is below the minimum threshold
+        if blob_chunk_size > 0.256:
+            blob.chunk_size = blob_chunk_size * 1024 * 1024
+        else:
+            blob.chunk_size = 0.256 * 1024 * 1024
+
         blob.upload_from_file(f)
         log.info(f"Uploaded file to blob")
-        upload_status = "success"
 
-    except (ConnectionError, socket.timeout, Timeout):
-        log.warning("Failed to upload due to connection error!")
+    except (ConnectionError, socket.timeout, Timeout) as ex:
+        log.warning("Failed to upload due to connection/timeout error")
         if max_retries > 0:
-            log.info(f"Retrying {max_retries} more times with a reduced chunk_size of {blob_chunk_size - 30}MiB")
+            log.info(f"Retrying {max_retries} more times with a reduced chunk_size of {blob_chunk_size/2}MiB")
             # lower the chunk size and start uploading from beginning because resumable_media requires so
             f.seek(0)
             upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
-                                max_retries - 1, blob_chunk_size - 30)
+                                max_retries - 1, int(round(blob_chunk_size/2)))
         else:
-            log.error(f"Failed to upload after retrying 3 times!")
-
-        upload_status = "failed"
-
-    return upload_status
+            log.error(f"Failed to upload after retrying 3 times")
+            raise ex
