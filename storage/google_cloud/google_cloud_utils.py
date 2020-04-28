@@ -88,7 +88,7 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
     :type f: file-like
     :param max_retries: Maximum number of times to retry uploading the file.
     :type max_retries: int
-    :param blob_chunk_size: the size of a chunk of data whenever iterating (in MiB).
+    :param blob_chunk_size: The chunk size to use for resumable uploads, in MiB
     :type blob_chunk_size: float
     """
     try:
