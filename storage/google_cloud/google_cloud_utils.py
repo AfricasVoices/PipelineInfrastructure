@@ -76,7 +76,7 @@ def download_blob_to_file(bucket_credentials_file_path, blob_url, f):
     log.info(f"Downloaded blob to file")
 
 
-def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_retries=2, blob_chunk_size=102400):
+def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_retries=2, blob_chunk_size=100 * 1024):
     """
     Uploads a file to a Google Cloud Storage blob.
 
@@ -101,15 +101,17 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
 
     except (ConnectionError, socket.timeout, Timeout) as ex:
         log.warning("Failed to upload due to connection/timeout error")
-        if max_retries > 0 and blob_chunk_size > 256:
-            log.info(f"Retrying up to{max_retries} more times with a reduced chunk_size of {blob_chunk_size/2}KB")
-            # lower the chunk size and start uploading from beginning because resumable_media requires so
-            f.seek(0)
-            upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
-                                max_retries - 1, blob_chunk_size/2)
-        elif max_retries > 0 and blob_chunk_size < 256:
-            log.error(f"Not retrying because the blob_chunk_size {blob_chunk_size} is below the minimum allowed (256KB")
-            raise ex
-        else:
+
+        if max_retries <= 0:
             log.error(f"Failed to upload file to blob")
             raise ex
+
+        if blob_chunk_size < 256:
+            log.error(f"Not retrying because the blob_chunk_size {blob_chunk_size} is below the minimum allowed (256KB)")
+            raise ex
+
+        log.info(f"Retrying up to{max_retries} more times with a reduced chunk_size of {blob_chunk_size / 2}KB")
+        # lower the chunk size and start uploading from beginning because resumable_media requires so
+        f.seek(0)
+        upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
+                            max_retries - 1, blob_chunk_size / 2)
