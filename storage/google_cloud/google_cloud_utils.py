@@ -95,7 +95,7 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
         log.info(f"Uploading file to blob '{target_blob_url}'...")
         storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
         blob = _blob_at_url(storage_client, target_blob_url)
-        blob.chunk_size = blob_chunk_size * 1024
+        blob.chunk_size = int(blob_chunk_size * 1024) # resumable expects an integer
         blob.upload_from_file(f)
         log.info(f"Uploaded file to blob")
 
