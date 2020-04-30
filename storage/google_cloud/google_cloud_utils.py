@@ -76,7 +76,7 @@ def download_blob_to_file(bucket_credentials_file_path, blob_url, f):
     log.info(f"Downloaded blob to file")
 
 
-def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_retries=2, blob_chunk_size=100 * 1024):
+def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_retries=4, blob_chunk_size=100 * 1024):
     """
     Uploads a file to a Google Cloud Storage blob.
 
