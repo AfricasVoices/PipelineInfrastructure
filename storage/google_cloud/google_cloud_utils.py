@@ -110,7 +110,7 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
             log.error(f"Not retrying because the blob_chunk_size {blob_chunk_size} is below the minimum allowed (256KB)")
             raise ex
 
-        log.info(f"Retrying up to{max_retries} more times with a reduced chunk_size of {blob_chunk_size / 2}KB")
+        log.info(f"Retrying up to {max_retries} more times with a reduced chunk_size of {blob_chunk_size / 2}KB")
         # lower the chunk size and start uploading from beginning because resumable_media requires so
         f.seek(0)
         upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
