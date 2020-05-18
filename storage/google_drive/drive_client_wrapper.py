@@ -218,11 +218,11 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
 
         _create_file(source_file_path, target_folder_id, target_file_name)
     except HttpError as ex:
-        # Handle 500 errors with exponentiated back-off, as is recommended by the Drive docs for this error.
-        if ex.resp.status != 500:
+        # Handle 500/503 errors with exponentiated back-off, as is recommended by the Drive docs for this error.
+        if ex.resp.status not in {500, 503}:
             raise ex
 
-        log.warning(f"Upload failed with HttpError 500")
+        log.warning(f"Upload failed with HttpError {ex.resp.status}")
         if max_retries > 0:
             log.info(f"Retrying up to {max_retries} more times, after {backoff_seconds} seconds...")
             time.sleep(backoff_seconds)
