@@ -1,9 +1,11 @@
 import os
+import socket
 import time
 
 import google.oauth2.service_account
 import googleapiclient.discovery
 from core_data_modules.logging import Logger
+from googleapiclient import http
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
@@ -157,8 +159,9 @@ def _add_folder(name, parent_id):
     return file.get('id')
 
 
-def _update_file(source_file_path, target_file_id):
+def _update_file(source_file_path, target_file_id, chunk_size=http.DEFAULT_CHUNK_SIZE / 1024):
     media = MediaFileUpload(source_file_path,
+                            chunksize=chunk_size * 1024,
                             resumable=True)
 
     log.info(f"Updating file with ID '{target_file_id}' with source file '{source_file_path}'...")
@@ -172,7 +175,7 @@ def _update_file(source_file_path, target_file_id):
     )
 
 
-def _create_file(source_file_path, target_folder_id, target_file_name=None):
+def _create_file(source_file_path, target_folder_id, target_file_name=None, chunk_size=http.DEFAULT_CHUNK_SIZE / 1024):
     if target_file_name is None:
         target_file_name = os.path.basename(source_file_path)
 
@@ -181,6 +184,7 @@ def _create_file(source_file_path, target_folder_id, target_file_name=None):
         "parents": [target_folder_id]
     }
     media = MediaFileUpload(source_file_path,
+                            chunksize=chunk_size * 1024,
                             resumable=True)
 
     log.info(f"Creating file '{target_file_name}' in folder with ID '{target_folder_id}' "
@@ -191,12 +195,14 @@ def _create_file(source_file_path, target_folder_id, target_file_name=None):
     log.info(f"Creating file '{target_file_name}' in folder with ID '{target_folder_id}' with source file "
              f"'{source_file_path}' - done. File id is '{file.get('id')}'")
 
-
 def update_or_create(source_file_path, target_folder_path, target_file_name=None, recursive=False,
-                     target_folder_is_shared_with_me=False, max_retries=2, backoff_seconds=1):
+                     target_folder_is_shared_with_me=False, max_retries=2, backoff_seconds=1,
+                     chunk_size=http.DEFAULT_CHUNK_SIZE / 1024):
     try:
         if target_file_name is None:
             target_file_name = os.path.basename(source_file_path)
+
+        chunk_size = int(chunk_size / 256) * 256  # Ensure the chunk size is a multiple of 256 KiB
 
         target_folder_id = _get_path_id(target_folder_path, recursive, target_folder_is_shared_with_me)
         files = _list_folder_id(target_folder_id)
@@ -213,21 +219,37 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
             if existing_file.get("mimetype") == "application/vnd.google-apps.folder":
                 log.error(f"Attempting to replace a folder with a file with name '{target_file_name}'")
                 exit(1)
-            _update_file(source_file_path, existing_file.get("id"))
+            _update_file(source_file_path, existing_file.get("id"), chunk_size)
             return
 
-        _create_file(source_file_path, target_folder_id, target_file_name)
+        _create_file(source_file_path, target_folder_id, target_file_name, chunk_size)
     except HttpError as ex:
         # Handle 500/503 errors with exponentiated back-off, as is recommended by the Drive docs for this error.
         if ex.resp.status not in {500, 503}:
             raise ex
 
         log.warning(f"Upload failed with HttpError {ex.resp.status}")
-        if max_retries > 0:
-            log.info(f"Retrying up to {max_retries} more times, after {backoff_seconds} seconds...")
-            time.sleep(backoff_seconds)
-            update_or_create(source_file_path, target_folder_path, target_file_name, recursive,
-                             target_folder_is_shared_with_me, max_retries - 1, backoff_seconds * 2)
-        else:
+        if max_retries <= 0:
             log.error("Retried the maximum number of times")
             raise ex
+
+        log.info(f"Retrying up to {max_retries} more times, after {backoff_seconds} seconds...")
+        time.sleep(backoff_seconds)
+        update_or_create(source_file_path, target_folder_path, target_file_name, recursive,
+                         target_folder_is_shared_with_me, max_retries - 1, backoff_seconds * 2, chunk_size)
+    except socket.timeout as ex:
+        log.warning(f"Upload failed with socket.timeout error")
+        if max_retries <= 0:
+            log.error("Retried the maximum number of times")
+            raise ex
+
+        half_chunk_size = chunk_size / 2
+        if half_chunk_size < 256:
+            log.error(f"Not retrying because the chunk_size {half_chunk_size} is below the minimum allowed (256 KiB)")
+            raise ex
+
+        log.info(f"Retrying up to {max_retries} more times with reduced chunk size {half_chunk_size} KiB, "
+                 f"after {backoff_seconds} seconds...")
+        time.sleep(backoff_seconds)
+        update_or_create(source_file_path, target_folder_path, target_file_name, recursive,
+                         target_folder_is_shared_with_me, max_retries - 1, backoff_seconds * 2, half_chunk_size)
