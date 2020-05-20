@@ -198,7 +198,7 @@ def update_or_create_batch(source_file_paths, target_folder_path, recursive=Fals
     files = _list_folder_id(target_folder_id)
     
     for i, source_file_path in enumerate(source_file_paths):
-        print(f"Uploading file {i}/{len(source_file_paths)}...")
+        log.info(f"Uploading file {i}/{len(source_file_paths)}...")
         
         target_file_name = os.path.basename(source_file_path)
         files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
