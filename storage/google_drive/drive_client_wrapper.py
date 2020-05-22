@@ -1,5 +1,6 @@
 import os
 import time
+import socket
 
 import google.oauth2.service_account
 import googleapiclient.discovery
@@ -217,12 +218,15 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
             return
 
         _create_file(source_file_path, target_folder_id, target_file_name)
-    except HttpError as ex:
-        # Handle 500 errors with exponentiated back-off, as is recommended by the Drive docs for this error.
-        if ex.resp.status != 500:
-            raise ex
+    except (HttpError, socket.timeout) as ex:
+        if type(ex) == HttpError:
+            if ex.resp.status != 500:
+                raise ex
+            log.warning(f"Upload failed with HttpError 500")
 
-        log.warning(f"Upload failed with HttpError 500")
+        if type(ex) == socket.timeout:
+            log.warning(f"Upload failed with socket.timeout error")
+
         if max_retries > 0:
             log.info(f"Retrying up to {max_retries} more times, after {backoff_seconds} seconds...")
             time.sleep(backoff_seconds)
