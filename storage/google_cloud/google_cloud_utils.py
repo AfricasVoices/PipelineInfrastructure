@@ -116,3 +116,25 @@ def upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f, max_re
         f.seek(0)
         upload_file_to_blob(bucket_credentials_file_path, target_blob_url, f,
                             max_retries - 1, blob_chunk_size / 2)
+
+
+def list_blobs( bucket_credentials_file_path, bucket_url, prefix):
+    """
+    Lists names of blobs in a bucket.
+
+    :param bucket_credentials_file_path: Path to a credentials file for accessing the bucket.
+    :type bucket_credentials_file_path: str
+    :param bucket_url: gs URL to the bucket in which to look for objects names. (i.e. of the form gs://<bucket-name>).
+    :type bucket_url: str
+    :param prefix: Filter results to objects whose names begin with this prefix. (e.g a directory inside the bucket)
+    :type prefix: str
+    :return: a list of blob objects names.
+    :rtype: list
+    """
+    storage_client = storage.Client.from_service_account_json(bucket_credentials_file_path)
+    parsed_bucket_url = urlparse(bucket_url)
+    bucket_name = parsed_bucket_url.netloc
+    blobs = storage_client.list_blobs(bucket_name, prefix=prefix)
+    blob_names = [blob.name for blob in blobs]
+
+    return blob_names
