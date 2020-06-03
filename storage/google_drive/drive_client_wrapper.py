@@ -220,9 +220,9 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
         _create_file(source_file_path, target_folder_id, target_file_name)
     except (HttpError, socket.timeout) as ex:
         if type(ex) == HttpError:
-            if ex.resp.status != 500:
+            if ex.resp.status not in {500, 503}:
                 raise ex
-            log.warning(f"Upload failed with HttpError 500")
+            log.warning(f"Upload failed with HttpError {ex.resp.status}")
 
         if type(ex) == socket.timeout:
             log.warning(f"Upload failed with socket.timeout error")
