@@ -10,6 +10,7 @@ from googleapiclient.http import MediaFileUpload
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/drive"]
+DRIVE_FOLDER_TYPE = "application/vnd.google-apps.folder"
 
 _drive_service = None
 
@@ -77,7 +78,7 @@ def _list_folder_id(folder_id):
 def _get_folder_id(name, parent_id, recursive=False):
     log.info('Getting id of folder "{}" under parent with id "{}"...'.format(name, parent_id))
     response = _drive_service.files().list(
-        q="name='{}' and '{}' in parents and mimeType='application/vnd.google-apps.folder'".format(name, parent_id),
+        q=f"name='{name}' and '{parent_id}' in parents and mimeType='{DRIVE_FOLDER_TYPE}'",
         spaces='drive',
         fields='files(id)').execute()
     files = response.get('files', [])
@@ -101,7 +102,7 @@ def _get_folder_id(name, parent_id, recursive=False):
 def _get_shared_folder_id(name):
     log.info(f"Getting id of shared-with-me folder '{name}'...")
     response = _drive_service.files().list(
-        q=f"name='{name}' and sharedWithMe=true and mimeType='application/vnd.google-apps.folder'",
+        q=f"name='{name}' and sharedWithMe=true and mimeType='{DRIVE_FOLDER_TYPE}'",
         spaces="drive",
         fields="files(id)").execute()
     files = response.get("files", [])
@@ -149,7 +150,7 @@ def _add_folder(name, parent_id):
     log.info(f"Creating folder '{name}' under parent with id '{parent_id}'...")
     file_metadata = {
         "name": name,
-        "mimeType": "application/vnd.google-apps.folder",
+        "mimeType": DRIVE_FOLDER_TYPE,
         "parents": [parent_id],
     }
     file = _drive_service.files().create(body=file_metadata,
@@ -234,7 +235,7 @@ def update_or_create_batch(source_file_paths, target_folder_path, recursive=Fals
         if len(files_with_upload_name) == 1:
             existing_file = files_with_upload_name[0]
             # Make sure it's not a folder
-            if existing_file.get("mimetype") == "application/vnd.google-apps.folder":
+            if existing_file.get("mimetype") == DRIVE_FOLDER_TYPE:
                 log.error(f"Attempting to replace a folder with a file with name '{target_file_name}'")
                 exit(1)
             _auto_retry(lambda: _update_file(source_file_path, existing_file.get("id")), max_retries, backoff_seconds)
@@ -264,7 +265,7 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
     if len(files_with_upload_name) == 1:
         existing_file = files_with_upload_name[0]
         # Make sure it's not a folder
-        if existing_file.get("mimetype") == "application/vnd.google-apps.folder":
+        if existing_file.get("mimetype") == DRIVE_FOLDER_TYPE:
             log.error(f"Attempting to replace a folder with a file with name '{target_file_name}'")
             exit(1)
         _auto_retry(lambda: _update_file(source_file_path, existing_file.get("id")), max_retries, backoff_seconds)
