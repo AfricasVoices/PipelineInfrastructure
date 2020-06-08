@@ -76,7 +76,7 @@ def _list_folder_id(folder_id):
 
 
 def _get_folder_id(name, parent_id, recursive=False):
-    log.info('Getting id of folder "{}" under parent with id "{}"...'.format(name, parent_id))
+    log.info(f"Getting id of folder '{name}' under parent with id '{parent_id}'...")
     response = _drive_service.files().list(
         q=f"name='{name}' and '{parent_id}' in parents and mimeType='{DRIVE_FOLDER_TYPE}'",
         spaces='drive',
