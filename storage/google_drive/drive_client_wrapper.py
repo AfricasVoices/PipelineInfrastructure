@@ -10,6 +10,7 @@ from googleapiclient.http import MediaFileUpload
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/drive"]
+DRIVE_FOLDER_TYPE = "application/vnd.google-apps.folder"
 
 _drive_service = None
 
@@ -75,9 +76,9 @@ def _list_folder_id(folder_id):
 
 
 def _get_folder_id(name, parent_id, recursive=False):
-    log.info('Getting id of folder "{}" under parent with id "{}"...'.format(name, parent_id))
+    log.info(f"Getting id of folder '{name}' under parent with id '{parent_id}'...")
     response = _drive_service.files().list(
-        q="name='{}' and '{}' in parents and mimeType='application/vnd.google-apps.folder'".format(name, parent_id),
+        q=f"name='{name}' and '{parent_id}' in parents and mimeType='{DRIVE_FOLDER_TYPE}'",
         spaces='drive',
         fields='files(id)').execute()
     files = response.get('files', [])
@@ -101,7 +102,7 @@ def _get_folder_id(name, parent_id, recursive=False):
 def _get_shared_folder_id(name):
     log.info(f"Getting id of shared-with-me folder '{name}'...")
     response = _drive_service.files().list(
-        q=f"name='{name}' and sharedWithMe=true and mimeType='application/vnd.google-apps.folder'",
+        q=f"name='{name}' and sharedWithMe=true and mimeType='{DRIVE_FOLDER_TYPE}'",
         spaces="drive",
         fields="files(id)").execute()
     files = response.get("files", [])
@@ -149,7 +150,7 @@ def _add_folder(name, parent_id):
     log.info(f"Creating folder '{name}' under parent with id '{parent_id}'...")
     file_metadata = {
         "name": name,
-        "mimeType": "application/vnd.google-apps.folder",
+        "mimeType": DRIVE_FOLDER_TYPE,
         "parents": [parent_id],
     }
     file = _drive_service.files().create(body=file_metadata,
@@ -193,14 +194,37 @@ def _create_file(source_file_path, target_folder_id, target_file_name=None):
              f"'{source_file_path}' - done. File id is '{file.get('id')}'")
 
 
-def update_or_create(source_file_path, target_folder_path, target_file_name=None, recursive=False,
-                     target_folder_is_shared_with_me=False, max_retries=2, backoff_seconds=1):
+def _auto_retry(f, max_retries=2, backoff_seconds=1):
     try:
-        if target_file_name is None:
-            target_file_name = os.path.basename(source_file_path)
+        return f()
+    except (HttpError, socket.timeout) as ex:
+        if type(ex) == HttpError:
+            if ex.resp.status not in {500, 503}:
+                raise ex
+            log.warning(f"Drive call failed with HttpError {ex.resp.status}")
 
-        target_folder_id = _get_path_id(target_folder_path, recursive, target_folder_is_shared_with_me)
-        files = _list_folder_id(target_folder_id)
+        if type(ex) == socket.timeout:
+            log.warning(f"Drive call failed with socket.timeout error")
+
+        if max_retries > 0:
+            log.info(f"Retrying up to {max_retries} more times, after {backoff_seconds} seconds...")
+            time.sleep(backoff_seconds)
+            _auto_retry(f, max_retries - 1, backoff_seconds * 2)
+        else:
+            log.error("Retried the maximum number of times")
+            raise ex
+
+
+def update_or_create_batch(source_file_paths, target_folder_path, recursive=False,
+                           target_folder_is_shared_with_me=False, max_retries=2, backoff_seconds=1):
+    target_folder_id = _auto_retry(lambda: _get_path_id(target_folder_path, recursive, target_folder_is_shared_with_me),
+                                   max_retries, backoff_seconds)
+    files = _auto_retry(lambda: _list_folder_id(target_folder_id), max_retries, backoff_seconds)
+    
+    for i, source_file_path in enumerate(source_file_paths):
+        log.info(f"Uploading file {i + 1}/{len(source_file_paths)}...")
+        
+        target_file_name = os.path.basename(source_file_path)
         files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
 
         if len(files_with_upload_name) > 1:
@@ -211,27 +235,41 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
         if len(files_with_upload_name) == 1:
             existing_file = files_with_upload_name[0]
             # Make sure it's not a folder
-            if existing_file.get("mimetype") == "application/vnd.google-apps.folder":
+            if existing_file.get("mimetype") == DRIVE_FOLDER_TYPE:
                 log.error(f"Attempting to replace a folder with a file with name '{target_file_name}'")
                 exit(1)
-            _update_file(source_file_path, existing_file.get("id"))
-            return
+            _auto_retry(lambda: _update_file(source_file_path, existing_file.get("id")), max_retries, backoff_seconds)
+            continue
 
-        _create_file(source_file_path, target_folder_id, target_file_name)
-    except (HttpError, socket.timeout) as ex:
-        if type(ex) == HttpError:
-            if ex.resp.status not in {500, 503}:
-                raise ex
-            log.warning(f"Upload failed with HttpError {ex.resp.status}")
+        _auto_retry(lambda: _create_file(source_file_path, target_folder_id, target_file_name),
+                    max_retries, backoff_seconds)
 
-        if type(ex) == socket.timeout:
-            log.warning(f"Upload failed with socket.timeout error")
 
-        if max_retries > 0:
-            log.info(f"Retrying up to {max_retries} more times, after {backoff_seconds} seconds...")
-            time.sleep(backoff_seconds)
-            update_or_create(source_file_path, target_folder_path, target_file_name, recursive,
-                             target_folder_is_shared_with_me, max_retries - 1, backoff_seconds * 2)
-        else:
-            log.error("Retried the maximum number of times")
-            raise ex
+def update_or_create(source_file_path, target_folder_path, target_file_name=None, recursive=False,
+                     target_folder_is_shared_with_me=False, max_retries=2, backoff_seconds=1):
+    if target_file_name is None:
+        target_file_name = os.path.basename(source_file_path)
+
+    target_folder_id = _auto_retry(
+        lambda: _get_path_id(target_folder_path, recursive, target_folder_is_shared_with_me),
+        max_retries, backoff_seconds)
+    files = _auto_retry(lambda: _list_folder_id(target_folder_id), max_retries, backoff_seconds)
+
+    files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
+
+    if len(files_with_upload_name) > 1:
+        log.error("Multiple files with the same name found in Drive folder.")
+        log.error("I don't know which to update, aborting.")
+        exit(1)
+
+    if len(files_with_upload_name) == 1:
+        existing_file = files_with_upload_name[0]
+        # Make sure it's not a folder
+        if existing_file.get("mimetype") == DRIVE_FOLDER_TYPE:
+            log.error(f"Attempting to replace a folder with a file with name '{target_file_name}'")
+            exit(1)
+        _auto_retry(lambda: _update_file(source_file_path, existing_file.get("id")), max_retries, backoff_seconds)
+        return
+
+    _auto_retry(lambda: _create_file(source_file_path, target_folder_id, target_file_name),
+                max_retries, backoff_seconds)
