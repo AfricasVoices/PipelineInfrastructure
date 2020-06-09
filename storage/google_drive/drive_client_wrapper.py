@@ -71,6 +71,7 @@ def _list_folder_id(folder_id):
         page_token = response.get("nextPageToken", None)
         if page_token is None:
             break
+        page_count += 1
     log.info(f"Getting children of folder with id '{folder_id}' - done. {len(children)} children")
     return children
 
