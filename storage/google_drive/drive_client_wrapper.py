@@ -60,12 +60,12 @@ def _list_folder_id(folder_id):
     log.info(f"Getting children of folder with id '{folder_id}'...")
     page_count = 1
     while True:
-        log.info(f"Getting children of folder with id '{folder_id}' - got page {page_count}")
         response = _drive_service.files().list(
             q=f"'{folder_id}' in parents",
             spaces='drive',
             fields='nextPageToken, files(id, name, mimeType)',
             pageToken=page_token).execute()
+        log.info(f"Getting children of folder with id '{folder_id}' - got page {page_count}")
         for file in response.get("files", []):
             children.append(file)
         page_token = response.get("nextPageToken", None)
