@@ -116,8 +116,6 @@ class FirestoreUuidTable(object):
         else:
             new_uuid = uuid_doc_ref.get(_UUID_KEY_NAME)
 
-        self._mappings_cache[data] = new_uuid
-
         return new_uuid
     
     def uuid_to_data(self, uuid_to_lookup):
