@@ -24,7 +24,7 @@ class FirestoreUuidTable(object):
         self._mappings_cache = dict()  # of data -> uuid
 
     def data_to_uuid_batch(self, list_of_data_requested):
-        # Check if the request can be served entirely from the cache
+        # Serve the request from the cache if possible, saving network request time + Firestore read costs
         list_of_data_requested = set(list_of_data_requested)
         if len(list_of_data_requested - set(self._mappings_cache.keys())) == 0:
             log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items from cache...")
@@ -131,7 +131,7 @@ class FirestoreUuidTable(object):
         raise LookupError() 
 
     def uuid_to_data_batch(self, uuids_to_lookup):
-        # Check if the request can be served entirely from the cache
+        # Serve the request from the cache if possible, saving network request time + Firestore read costs
         uuids_to_lookup = set(uuids_to_lookup)
         if len(uuids_to_lookup - set(self._mappings_cache.values())) == 0:
             log.info(f"Looking up the data for {len(uuids_to_lookup)} uuids from cache...")
