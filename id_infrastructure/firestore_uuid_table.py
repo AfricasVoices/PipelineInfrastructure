@@ -28,7 +28,7 @@ class FirestoreUuidTable(object):
         list_of_data_requested = set(list_of_data_requested)
         if len(list_of_data_requested - set(self._mappings_cache.keys())) == 0:
             log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items from cache...")
-            return {data: uuid for data, uuid in self._mappings_cache if data in list_of_data_requested}
+            return {data: uuid for data, uuid in self._mappings_cache.items() if data in list_of_data_requested}
 
         # Stream the datastore to a local copy
         # Separate out the mappings of existing items
@@ -135,7 +135,7 @@ class FirestoreUuidTable(object):
         uuids_to_lookup = set(uuids_to_lookup)
         if len(uuids_to_lookup - set(self._mappings_cache.values())) == 0:
             log.info(f"Looking up the data for {len(uuids_to_lookup)} uuids from cache...")
-            return {uuid: data for data, uuid in self._mappings_cache if uuid in uuids_to_lookup}
+            return {uuid: data for data, uuid in self._mappings_cache.items() if uuid in uuids_to_lookup}
 
         # Search for the UUID
         # Return a mapping data for the uuids that were in the collection
