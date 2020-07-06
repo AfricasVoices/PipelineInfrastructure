@@ -22,6 +22,7 @@ class FirestoreUuidTable(object):
         self._table_name = table_name
         self._uuid_prefix = uuid_prefix
         self._mappings_cache = dict()  # of data -> uuid
+        self._documents_requested = 0
 
     def data_to_uuid_batch(self, list_of_data_requested):
         # Serve the request from the cache if possible, saving network request time + Firestore read costs
@@ -38,6 +39,7 @@ class FirestoreUuidTable(object):
             log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items from Firestore...")
             existing_mappings = dict()
             for mapping in self._client.collection(f"tables/{self._table_name}/mappings").get():
+                self._documents_requested += 1
                 existing_mappings[mapping.id] = mapping.get(_UUID_KEY_NAME)
         else:
             log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items from cache...")
@@ -61,6 +63,7 @@ class FirestoreUuidTable(object):
         for data in new_mappings.keys():
             # ensure in single read that the data doesn't exist
             uuid_doc = self._client.document(f"tables/{self._table_name}/mappings/{data}").get()
+            self._documents_requested += 1
             exists = uuid_doc.exists
             if exists:
                 log.warning("Attempted to set mapping for data which was already in the datastore. "
@@ -147,6 +150,7 @@ class FirestoreUuidTable(object):
         log.info(f"Looking up the data for {len(uuids_to_lookup)} uuids from Firestore...")
         reverse_mappings = dict()
         for mapping in self._client.collection(f"tables/{self._table_name}/mappings").get():
+            self._documents_requested += 1
             self._mappings_cache[mapping.id] = mapping.get(_UUID_KEY_NAME)
             reverse_mappings[mapping.get(_UUID_KEY_NAME)] = mapping.id
         
