@@ -27,18 +27,21 @@ class FirestoreUuidTable(object):
         # Serve the request from the cache if possible, saving network request time + Firestore read costs
         list_of_data_requested = set(list_of_data_requested)
         if len(list_of_data_requested - set(self._mappings_cache.keys())) == 0:
-            log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items from cache...")
+            log.info(f"Returning uuids for {len(list_of_data_requested)} data items from cache...")
             return {data: uuid for data, uuid in self._mappings_cache.items() if data in list_of_data_requested}
 
-        # Stream the datastore to a local copy
-        # Separate out the mappings of existing items
-        # Compute new mappings
-        # Bulk update the data store
-        # Return the mapping table
-        log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items from Firestore...")
-        existing_mappings = dict() 
-        for mapping in self._client.collection(f"tables/{self._table_name}/mappings").get():
-            existing_mappings[mapping.id] = mapping.get(_UUID_KEY_NAME)
+        # If the cache is empty, download the entire mappings dataset for this table.
+        # Otherwise, assume the cache is up-to-date and use that (we'll still check before creating new uuids and
+        # overwriting any existing data just in case it's not up-to-date, which likely means the table was being used
+        # concurrently)
+        if len(self._mappings_cache) == 0:
+            log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items from Firestore...")
+            existing_mappings = dict()
+            for mapping in self._client.collection(f"tables/{self._table_name}/mappings").get():
+                existing_mappings[mapping.id] = mapping.get(_UUID_KEY_NAME)
+        else:
+            log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items from cache...")
+            existing_mappings = dict(self._mappings_cache)
 
         set_of_data_requested = set(list_of_data_requested)
         new_mappings_needed = set_of_data_requested.difference(
@@ -112,6 +115,8 @@ class FirestoreUuidTable(object):
             )
         else:
             new_uuid = uuid_doc_ref.get(_UUID_KEY_NAME)
+
+        self._mappings_cache[data] = new_uuid
 
         return new_uuid
     
