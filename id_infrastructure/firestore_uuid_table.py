@@ -41,7 +41,7 @@ class FirestoreUuidTable(object):
                 existing_mappings[mapping.id] = mapping.get(_UUID_KEY_NAME)
         else:
             log.info(f"Sourcing uuids for {len(list_of_data_requested)} data items from cache...")
-            existing_mappings = dict(self._mappings_cache)
+            existing_mappings = self._mappings_cache.copy()
 
         set_of_data_requested = set(list_of_data_requested)
         new_mappings_needed = set_of_data_requested.difference(
