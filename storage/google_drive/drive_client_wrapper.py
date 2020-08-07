@@ -265,7 +265,8 @@ def update_or_create_batch(source_file_paths, target_folder_path, recursive=Fals
 
 
 def update_or_create(source_file_path, target_folder_path, target_file_name=None, recursive=False,
-                     target_folder_is_shared_with_me=False, max_retries=2, backoff_seconds=1):
+                     target_folder_is_shared_with_me=False, fix_duplicates=False,
+                     max_retries=2, backoff_seconds=1):
     if target_file_name is None:
         target_file_name = os.path.basename(source_file_path)
 
@@ -277,9 +278,20 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
     files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
 
     if len(files_with_upload_name) > 1:
-        log.error("Multiple files with the same name found in Drive folder.")
-        log.error("I don't know which to update, aborting.")
-        exit(1)
+        log.warning("Multiple files with the same name found in Drive folder.")
+        if fix_duplicates:
+            log.warning("Deleting the duplicate files...")
+            for duplicate_file in files_with_upload_name:
+                # Make sure it's not a folder
+                if duplicate_file.get("mimetype") == DRIVE_FOLDER_TYPE:
+                    log.error(f"Attempting to remove a folder with name '{target_file_name}'")
+                    exit(1)
+                _auto_retry(lambda: _delete_file(duplicate_file.get("id")), max_retries, backoff_seconds)
+            files_with_upload_name = []
+        else:
+            log.error("I don't know which to update, aborting. To handle this automatically in future, set "
+                      "`fix_duplicates=True` when calling this function.")
+            exit(1)
 
     if len(files_with_upload_name) == 1:
         existing_file = files_with_upload_name[0]
