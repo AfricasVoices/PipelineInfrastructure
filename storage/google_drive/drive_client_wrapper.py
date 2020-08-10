@@ -223,13 +223,13 @@ def update_or_create_batch(source_file_paths, target_folder_path, recursive=Fals
     files = _auto_retry(lambda: _list_folder_id(target_folder_id), max_retries, backoff_seconds)
     
     for i, source_file_path in enumerate(source_file_paths):
-        log.info(f"Uploading file {i + 1}/{len(source_file_paths)}...")
+        log.info(f"Uploading file {i + 1}/{len(source_file_paths)}: {source_file_path}...")
         
         target_file_name = os.path.basename(source_file_path)
         files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
 
         if len(files_with_upload_name) > 1:
-            log.error("Multiple files with the same name found in Drive folder.")
+            log.error(f"Multiple files with the same name '{source_file_path}' found in Drive folder.")
             log.error("I don't know which to update, aborting.")
             exit(1)
 
@@ -259,7 +259,7 @@ def update_or_create(source_file_path, target_folder_path, target_file_name=None
     files_with_upload_name = list(filter(lambda file: file.get('name') == target_file_name, files))
 
     if len(files_with_upload_name) > 1:
-        log.error("Multiple files with the same name found in Drive folder.")
+        log.error(f"Multiple files with the same name '{target_file_name}' found in Drive folder.")
         log.error("I don't know which to update, aborting.")
         exit(1)
 
