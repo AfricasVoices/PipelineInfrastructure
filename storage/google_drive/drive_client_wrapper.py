@@ -196,7 +196,10 @@ def _create_file(source_file_path, target_folder_id, target_file_name=None):
 
 
 def _delete_file(file_id):
-    log.info(f"Deleting file '{file_id}'...")
+    """
+    Permanently deletes a file, skipping the trash.
+    """
+    log.warning(f"Deleting file '{file_id}'...")
     _drive_service.files().delete(fileId=file_id).execute()
     log.info(f"Deleting file '{file_id}' - done.")
 
