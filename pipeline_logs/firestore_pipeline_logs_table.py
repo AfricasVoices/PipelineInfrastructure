@@ -14,7 +14,7 @@ class FirestorePipelinesLogsTable(object):
         :type cert: str or dict
         """
         cred = credentials.Certificate(cert)
-        firebase_admin.initialize_app(cred, "firestore_pipeline_logs_table")
+        firebase_admin.initialize_app(cred, name="firestore_pipeline_logs_table")
         self.client = firestore.client()
 
 
