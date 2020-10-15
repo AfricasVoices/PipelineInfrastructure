@@ -14,7 +14,7 @@ class FirestorePipelinesLogsTable(object):
         :type cert: str or dict
         """
         cred = credentials.Certificate(cert)
-        firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(cred, "firestore_pipeline_logs_table")
         self.client = firestore.client()
 
 
@@ -28,10 +28,10 @@ class FirestorePipelinesLogsTable(object):
 
         :param pipeline_name: Name of pipeline to update the pipeline logs of.
         :type pipeline_name: str
-        :param timestamp_string: ISO 8601 formatted timestamp string to update the pipeline logs of.
+        :param timestamp_string: timestamp string to update the pipeline logs of.
         :type timestamp_string: str
         :param pipeline_logs: Pipeline logs to update with.
-        :type pipeline_logs: pipeline_logs.pipeline_logs.PipelineLogs
+        :type pipeline_logs: dict
         """
         log.info(f"Updating Pipeline Logs for project {pipeline_name} at time {timestamp_string}...")
         self._get_pipeline_log_doc_ref(pipeline_name, timestamp_string).set(pipeline_logs)
