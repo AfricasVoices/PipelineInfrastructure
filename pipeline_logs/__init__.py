@@ -1,2 +1,2 @@
-from firebase_pipeline_logs_table import FirestorePipelinesLogsTable
-from pipeline_logs import PipelineLogs
+from pipeline_logs.firestore_pipeline_logs_table import FirestorePipelinesLogsTable
+from pipeline_logs.pipeline_logs import PipelineLogs
