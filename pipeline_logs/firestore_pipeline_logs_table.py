@@ -31,7 +31,7 @@ class FirestorePipelinesLogsTable(object):
         :param timestamp_string: ISO 8601 formatted timestamp string to update the pipeline logs of.
         :type timestamp_string: str
         :param pipeline_logs: Pipeline logs to update with.
-        :type pipeline_logs: pipeline_monitoring.pipeline_logs.PipelineLogs
+        :type pipeline_logs: pipeline_logs.pipeline_logs.PipelineLogs
         """
         log.info(f"Updating Pipeline Logs for project {pipeline_name} at time {timestamp_string}...")
         self._get_pipeline_log_doc_ref(pipeline_name, timestamp_string).set(pipeline_logs.to_dict())
