@@ -34,4 +34,4 @@ class FirestorePipelinesLogsTable(object):
         :type pipeline_logs: pipeline_logs.pipeline_logs.PipelineLogs
         """
         log.info(f"Updating Pipeline Logs for project {pipeline_name} at time {timestamp_string}...")
-        self._get_pipeline_log_doc_ref(pipeline_name, timestamp_string).set(pipeline_logs.to_dict())
+        self._get_pipeline_log_doc_ref(pipeline_name, timestamp_string).set(pipeline_logs)
