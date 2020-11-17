@@ -39,13 +39,14 @@ class FirestorePipelineLogger(object):
         return timestamp
 
     def _get_pipeline_log_doc_ref(self):
-        return self.client.document(f"metrics/pipeline_logs/{self.pipeline_name}/{self._compute_current_timestamp()}")
+        return self.client.document(f"metrics/pipelines/pipeline_logs/{self._compute_current_timestamp()}")
 
     def _log_event(self):
         """
         Returns a dict of timestamp, run_id and event
         """
-        pipeline_log = {"timestamp": self.timestamp,
+        pipeline_log = {"pipeline_name": self.pipeline_name,
+                        "timestamp": self.timestamp,
                          "run_id": self.run_id,
                          "event": self.event}
 
