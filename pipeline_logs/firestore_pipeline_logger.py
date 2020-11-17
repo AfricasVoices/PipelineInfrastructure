@@ -9,10 +9,8 @@ log = Logger(__name__)
 
 class FirestorePipelineLogger(object):
 
-    def __init__(self, cert, pipeline_name, timestamp, run_id, event):
+    def __init__(self,  pipeline_name, timestamp, run_id, event, cert):
         """
-        :param cert: Path to a certificate file or a dict representing the contents of a certificate.
-        :type cert: str or dict
         :param pipeline_name: Name of pipeline to update the pipeline logs of.
         :type pipeline_name: str
         :param timestamp: timestamp string to update the pipeline logs of.
@@ -21,6 +19,8 @@ class FirestorePipelineLogger(object):
         :type run_id: str
         :param event: event log name.
         :type event: str
+        :param cert: Path to a certificate file or a dict representing the contents of a certificate.
+        :type cert: str or dict
 
         """
         self.pipeline_name = pipeline_name
@@ -43,7 +43,7 @@ class FirestorePipelineLogger(object):
 
     def _log_event(self):
         """
-        Returns a dict of timestamp, run_id and event
+        Returns a dict of pipeline name, timestamp, run_id and event
         """
         pipeline_log = {"pipeline_name": self.pipeline_name,
                         "timestamp": self.timestamp,
