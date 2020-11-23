@@ -1,7 +1,6 @@
 import firebase_admin
 from core_data_modules.logging import Logger
 from firebase_admin import credentials, firestore
-from datetime import datetime
 
 
 log = Logger(__name__)
@@ -28,7 +27,7 @@ class FirestorePipelineLogger(object):
         self.run_id = run_id
         self.event = event
         cred = credentials.Certificate(cert)
-        firebase_admin.initialize_app(credential = cred, name='PIPELINE_LOGGER')
+        firebase_admin.initialize_app(cred)
         self.client = firestore.client()
 
     def _get_pipeline_log_doc_ref(self):
@@ -54,3 +53,5 @@ class FirestorePipelineLogger(object):
 
         log.info(f"Updating Pipeline Logs for project {self.pipeline_name} at time {self.timestamp}...")
         self._get_pipeline_log_doc_ref().set(pipeline_log)
+
+        firebase_admin.delete_app()
