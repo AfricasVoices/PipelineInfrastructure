@@ -28,18 +28,11 @@ class FirestorePipelineLogger(object):
         self.run_id = run_id
         self.event = event
         cred = credentials.Certificate(cert)
-        firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(credentials = cred, name='PIPELINE_LOGGER')
         self.client = firestore.client()
 
-    def _compute_current_timestamp(self):
-
-        timestamp = datetime.now()
-        timestamp = timestamp.strftime("%d/%m/%Y %H:%M:%S")
-
-        return timestamp
-
     def _get_pipeline_log_doc_ref(self):
-        return self.client.document(f"metrics/pipelines/pipeline_logs/{self._compute_current_timestamp()}")
+        return self.client.document(f"metrics/pipelines/pipeline_logs/{self.timestamp}")
 
     def _log_event(self):
         """
@@ -59,5 +52,5 @@ class FirestorePipelineLogger(object):
 
         pipeline_log = self._log_event()
 
-        log.info(f"Updating Pipeline Logs for project {self.pipeline_name} at time {self._compute_current_timestamp()}...")
+        log.info(f"Updating Pipeline Logs for project {self.pipeline_name} at time {self.timestamp}...")
         self._get_pipeline_log_doc_ref().set(pipeline_log)
