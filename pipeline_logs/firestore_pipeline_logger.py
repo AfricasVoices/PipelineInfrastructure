@@ -28,7 +28,7 @@ class FirestorePipelineLogger(object):
         self.event = event
         cred = credentials.Certificate(cert)
 
-        if firebase_admin._DEFAULT_APP_NAME in firebase_admin:
+        if firebase_admin._DEFAULT_APP_NAME in firebase_admin._apps:
             firebase_admin.initialize_app(cred, name='pipeline_logger')
         else:
             firebase_admin.initialize_app(cred)
