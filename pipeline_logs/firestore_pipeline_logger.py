@@ -27,12 +27,7 @@ class FirestorePipelineLogger(object):
         self.run_id = run_id
         self.event = event
         cred = credentials.Certificate(cert)
-
-        if firebase_admin._DEFAULT_APP_NAME in firebase_admin._apps:
-            firebase_admin.initialize_app(cred, name='pipeline_logger')
-        else:
-            firebase_admin.initialize_app(cred)
-
+        firebase_admin.initialize_app(cred)
         self.client = firestore.client()
 
     def _get_pipeline_log_doc_ref(self):
