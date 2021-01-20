@@ -27,13 +27,18 @@ class FirestorePipelineLogger(object):
         self.run_id = run_id
         self.event = event
         cred = credentials.Certificate(cert)
-        firebase_admin.initialize_app(cred)
+
+        if firebase_admin._DEFAULT_APP_NAME in firebase_admin:
+            firebase_admin.initialize_app(cred, name='pipeline_logger')
+        else:
+            firebase_admin.initialize_app(cred)
+
         self.client = firestore.client()
 
     def _get_pipeline_log_doc_ref(self):
         return self.client.document(f"metrics/pipelines/pipeline_logs/{self.timestamp}")
 
-    def _log_event(self):
+    def log_event(self):
         """
         Returns a dict of pipeline name, timestamp, run_id and event
         """
@@ -49,9 +54,7 @@ class FirestorePipelineLogger(object):
         Updates the pipeline logs for the given pipeline run.
         """
 
-        pipeline_log = self._log_event()
+        pipeline_log = self.log_event()
 
         log.info(f"Updating Pipeline Logs for project {self.pipeline_name} at time {self.timestamp}...")
         self._get_pipeline_log_doc_ref().set(pipeline_log)
-
-        firebase_admin.delete_app()
