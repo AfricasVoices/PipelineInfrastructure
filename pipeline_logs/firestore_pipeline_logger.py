@@ -24,8 +24,8 @@ class FirestorePipelineLogger(object):
         firebase_admin.initialize_app(cred)
         self.client = firestore.client()
 
-    def _get_pipeline_log_doc_ref(self):
-        return self.client.document(f"metrics/pipelines/pipeline_logs/{self.run_id}")
+    def _get_pipeline_log_doc_ref(self, event_timestamp):
+        return self.client.document(f"metrics/pipelines/pipeline_logs/{event_timestamp}")
 
 
     def log_event(self, event_timestamp, event_name):
@@ -39,4 +39,4 @@ class FirestorePipelineLogger(object):
                         "event": event_name}
 
         log.info(f"Updating Pipeline Logs for project {event_name} at time {event_timestamp}...")
-        self._get_pipeline_log_doc_ref().set(pipeline_log)
+        self._get_pipeline_log_doc_ref(event_timestamp).set(pipeline_log)
