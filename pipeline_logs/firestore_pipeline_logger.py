@@ -31,6 +31,12 @@ class FirestorePipelineLogger(object):
     def log_event(self, event_timestamp, event_name):
         """
         Updates the pipeline logs for the given pipeline run.
+
+        :param timestamp_string: timestamp string to update the pipeline logs of.
+        :type timestamp_string: str
+         :param event_name: name of current run stage to update to firestore.
+        :type event: datetime str
+
         """
 
         pipeline_log = {"pipeline_name": self.pipeline_name,
