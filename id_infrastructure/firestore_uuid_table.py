@@ -23,7 +23,7 @@ class FirestoreUuidTable(object):
         self._uuid_prefix = uuid_prefix
         self._mappings_cache = dict()  # of data -> uuid
 
-    def data_to_uuid_batch(self, list_of_data_requested):
+    def data_to_uuid_batch(self, list_of_data_requested, create_missing_uuids=True):
         # Serve the request from the cache if possible, saving network request time + Firestore read costs
         list_of_data_requested = set(list_of_data_requested)
         if len(list_of_data_requested - set(self._mappings_cache.keys())) == 0:
@@ -52,6 +52,13 @@ class FirestoreUuidTable(object):
         new_mappings = dict()
         for data in new_mappings_needed:
             new_mappings[data] = FirestoreUuidTable.generate_new_uuid(self._uuid_prefix)
+
+        if not create_missing_uuids:
+            ret = dict()
+            for data_requested in set_of_data_requested:
+                ret[data_requested] = existing_mappings[data_requested]
+
+            return ret
         
         # Batch write the new mappings
         total_count_to_write = len(new_mappings)
