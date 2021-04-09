@@ -11,6 +11,17 @@ _UUID_KEY_NAME = "uuid"
 log = Logger(__name__)
 
 
+class FirestoreUuidTableCollection(object):
+    def __init__(self, crypto_token_path):
+        cred = credentials.Certificate(crypto_token_path)
+        firebase_admin.initialize_app(cred)
+        self._client = firestore.client()
+
+    def list_table_names(self):
+        tables = self._client.collection("tables").get()
+        return [t.id for t in tables]
+
+
 class FirestoreUuidTable(object):
     """
     Mapping table between a string and a random UUID backed by Firestore
@@ -157,6 +168,10 @@ class FirestoreUuidTable(object):
 
         log.info(f"Found keys for {len(results)} out of {len(uuids_to_lookup)} requests")
         return results
+
+    def get_all_mappings(self):
+        self.data_to_uuid_batch([])
+        return self._mappings_cache.copy()
 
     @staticmethod
     def generate_new_uuid(prefix):
