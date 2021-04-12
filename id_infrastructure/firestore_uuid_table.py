@@ -11,28 +11,95 @@ _UUID_KEY_NAME = "uuid"
 log = Logger(__name__)
 
 
-class FirestoreUuidTableCollection(object):
-    def __init__(self, crypto_token_path):
-        cred = credentials.Certificate(crypto_token_path)
-        firebase_admin.initialize_app(cred)
-        self._client = firestore.client()
+def _make_client(crypto_token_path, app_name):
+    # Create the default app if it doesn't already exist, because we can't create an app with a custom `app_name`
+    # without creating a default app first.
+    try:
+        firebase_admin.get_app()
+    except ValueError:
+        log.debug("Creating default Firebase app")
+        firebase_admin.initialize_app()
+
+    log.debug(f"Creating Firebase app {app_name}")
+    cred = credentials.Certificate(crypto_token_path)
+    app = firebase_admin.initialize_app(cred, name=app_name)
+    return firestore.client(app)
+
+
+class FirestoreUuidInfrastructure(object):
+    def __init__(self, client):
+        """
+        Client for accessing a collection of Firestore uuid tables.
+
+        :param client: Firebase client.
+        :type client: firebase_admin.auth.Client
+        """
+        self._client = client
+
+    @classmethod
+    def init_from_credentials(cls, cert, app_name="FirestoreUuidInfrastructure"):
+        """
+        :param cert: Firestore service account certificate, as a path to a file or a dictionary.
+        :type cert: str | dict
+        :param app_name: Name to call the Firestore app instance we'll use to connect.
+        :type app_name: str
+        :return:
+        :rtype: FirestoreUuidInfrastructure
+        """
+        return cls(_make_client(cert, app_name))
 
     def list_table_names(self):
+        """
+        :return: The names of all the firestore uuid tables currently in Firestore.
+        :rtype: list of str
+        """
         tables = self._client.collection("tables").get()
         return [t.id for t in tables]
 
+    def get_table(self, table_name, uuid_prefix):
+        """
+        :param table_name: Name of table to get.
+        :type table_name: str
+        :param uuid_prefix: Prefix to give the generated uuids in the table.
+        :type uuid_prefix: str
+        :return: FirestoreUuidTable with name `table_name`.
+        :rtype: FirestoreUuidTable
+        """
+        return FirestoreUuidTable(self._client, table_name, uuid_prefix)
+
 
 class FirestoreUuidTable(object):
-    """
-    Mapping table between a string and a random UUID backed by Firestore
-    """
-    def __init__(self, table_name, crypto_token_path, uuid_prefix):
-        cred = credentials.Certificate(crypto_token_path)
-        firebase_admin.initialize_app(cred)
-        self._client = firestore.client()
+    def __init__(self, client, table_name, uuid_prefix):
+        """
+        Client for accessing a single Firestore uuid table.
+
+        :param client: Firebase client.
+        :type client: firebase_admin.auth.Client
+        :param table_name: Name of the uuid table in Firestore.
+        :type table_name: str
+        :param uuid_prefix: Prefix to give the generated uuids in the table.
+        :type uuid_prefix: str
+        """
+        self._client = client
         self._table_name = table_name
         self._uuid_prefix = uuid_prefix
         self._mappings_cache = dict()  # of data -> uuid
+
+    @classmethod
+    def init_from_credentials(cls, cert, table_name, uuid_prefix, app_name="FirestoreUuidInfrastructure"):
+        """
+        :param cert: Firestore service account certificate, as a path to a file or a dictionary.
+        :type cert: str | dict
+        :param table_name: Name of the uuid table in Firestore.
+        :type table_name: str
+        :param uuid_prefix: Prefix to give the generated uuids in the table.
+        :type uuid_prefix: str
+        :param app_name: Name to call the Firestore app instance we'll use to connect.
+        :type app_name: str
+        :return:
+        :rtype: FirestoreUuidTable
+        """
+        return cls(_make_client(cert, app_name), table_name, uuid_prefix)
 
     def data_to_uuid_batch(self, list_of_data_requested):
         # Serve the request from the cache if possible, saving network request time + Firestore read costs
@@ -63,7 +130,10 @@ class FirestoreUuidTable(object):
         new_mappings = dict()
         for data in new_mappings_needed:
             new_mappings[data] = FirestoreUuidTable.generate_new_uuid(self._uuid_prefix)
-        
+
+        # Make sure the table doc exists
+        self._client.document(f"tables/{self._table_name}").set({"table_name": self._table_name}, merge=True)
+
         # Batch write the new mappings
         total_count_to_write = len(new_mappings)
         i = 0
@@ -119,6 +189,11 @@ class FirestoreUuidTable(object):
         if not exists:
             new_uuid = FirestoreUuidTable.generate_new_uuid(self._uuid_prefix)
             log.info(f"No mapping found for: {data}, assigning UUID: {new_uuid}")
+
+            # Make sure the table doc exists
+            self._client.document(f"tables/{self._table_name}").set({"table_name": self._table_name}, merge=True)
+
+            # Write the new data <-> uuid mapping
             self._client.document(f"tables/{self._table_name}/mappings/{data}").set(
                 {
                     _UUID_KEY_NAME: new_uuid
@@ -170,7 +245,15 @@ class FirestoreUuidTable(object):
         return results
 
     def get_all_mappings(self):
-        self.data_to_uuid_batch([])
+        """
+        Returns all the mappings currently in this table.
+
+        :return: Dictionary of data -> uuid
+        :rtype: dict
+        """
+        self._mappings_cache = {}
+        for mapping in self._client.collection(f"tables/{self._table_name}/mappings").get():
+            self._mappings_cache[mapping.id] = mapping.get(_UUID_KEY_NAME)
         return self._mappings_cache.copy()
 
     @staticmethod
