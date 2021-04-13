@@ -54,7 +54,7 @@ class FirestoreUuidInfrastructure(object):
         :rtype: list of str
         """
         tables = self._client.collection("tables").get()
-        return [t.id for t in tables]
+        return [table.id for table in tables]
 
     def get_table(self, table_name, uuid_prefix):
         """
