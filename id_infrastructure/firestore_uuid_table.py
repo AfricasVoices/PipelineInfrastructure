@@ -1,29 +1,13 @@
 import uuid
 
-import firebase_admin
 from core_data_modules.logging import Logger
-from firebase_admin import credentials
-from firebase_admin import firestore
+
+from util.firestore_utils import make_firestore_client
 
 BATCH_SIZE = 500
 _UUID_KEY_NAME = "uuid"
 
 log = Logger(__name__)
-
-
-def _make_client(crypto_token_path, app_name):
-    # Create the default app if it doesn't already exist, because we can't create an app with a custom `app_name`
-    # without creating a default app first.
-    try:
-        firebase_admin.get_app()
-    except ValueError:
-        log.debug("Creating default Firebase app")
-        firebase_admin.initialize_app()
-
-    log.debug(f"Creating Firebase app {app_name}")
-    cred = credentials.Certificate(crypto_token_path)
-    app = firebase_admin.initialize_app(cred, name=app_name)
-    return firestore.client(app)
 
 
 class FirestoreUuidInfrastructure(object):
@@ -46,7 +30,7 @@ class FirestoreUuidInfrastructure(object):
         :return:
         :rtype: FirestoreUuidInfrastructure
         """
-        return cls(_make_client(cert, app_name))
+        return cls(make_firestore_client(cert, app_name))
 
     def list_table_names(self):
         """
@@ -99,7 +83,7 @@ class FirestoreUuidTable(object):
         :return:
         :rtype: FirestoreUuidTable
         """
-        return cls(_make_client(cert, app_name), table_name, uuid_prefix)
+        return cls(make_firestore_client(cert, app_name), table_name, uuid_prefix)
 
     def data_to_uuid_batch(self, list_of_data_requested):
         # Serve the request from the cache if possible, saving network request time + Firestore read costs
