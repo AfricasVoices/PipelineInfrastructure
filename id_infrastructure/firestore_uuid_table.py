@@ -164,6 +164,9 @@ class FirestoreUuidTable(object):
         # If it does return the UUID
         # If it doesn't, create a new UUID, store it
         # block until the store completes return the new UUID
+        if data in self._mappings_cache:
+            return self._mappings_cache[data]
+
         uuid_doc_ref = self._client.document(f"tables/{self._table_name}/mappings/{data}").get()
 
         exists = uuid_doc_ref.exists
@@ -185,6 +188,8 @@ class FirestoreUuidTable(object):
             )
         else:
             new_uuid = uuid_doc_ref.get(_UUID_KEY_NAME)
+
+        self._mappings_cache[data] = new_uuid
 
         return new_uuid
     
