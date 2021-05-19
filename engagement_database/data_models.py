@@ -68,7 +68,7 @@ class Message(object):
         self.last_updated = last_updated
 
     def to_dict(self):
-        d = {
+        message_dict = {
             "text": self.text,
             "timestamp": self.timestamp,
             "participant_uuid": self.participant_uuid,
@@ -82,9 +82,9 @@ class Message(object):
         }
 
         if self.coda_id is not None:
-            d["coda_id"] = self.coda_id
+            message_dict["coda_id"] = self.coda_id
 
-        return d
+        return message_dict
 
     @classmethod
     def from_dict(cls, d):
