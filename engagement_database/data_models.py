@@ -8,9 +8,9 @@ class MessageStatuses(object):
     STALE = "stale"            # Message is stale and we should attempt to get a newer answer if we can. This message
                                # can be used until we get a newer answer.
     ARCHIVED = "archived"      # This message is no longer relevant and should be ignored by analysis.
-    TOMBSTONED = "tombstoned"  # Message is tombstoned, so personally identifiable details have been removed.
+    ANONYMISED = "anonymised"  # Message is anonymised, so personally identifiable details have been removed.
 
-    VALUES = {LIVE, STALE, ARCHIVED, TOMBSTONED}
+    VALUES = {LIVE, STALE, ARCHIVED, ANONYMISED}
 
 
 class MessageDirections(object):
