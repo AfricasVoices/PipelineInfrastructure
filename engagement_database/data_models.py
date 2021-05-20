@@ -164,14 +164,20 @@ class HistoryEntry(object):
 
 
 class HistoryEntryOrigin(object):
-    def __init__(self, origin_name, user, project, pipeline, details, commit, line=None):
+    _USER = None
+    _PROJECT = None
+    _PIPELINE = None
+    _COMMIT = None
+
+    def __init__(self, origin_name, details, user=None, project=None, pipeline=None, commit=None, line=None):
         """
         Represents the origin description for a history event.
 
         :param origin_name: Human-friendly name describing the origin of the update e.g. "Rapid Pro -> Database Sync"
         :type origin_name: str
         :param user: Id of the user who ran the program that created the update e.g. user@domain.com.
-        :type user: str
+                     If None, attempts to use the global default set by cls.set_globals, otherwise fails.
+        :type user: str | None
         :param project: Name of the project that created the update, ideally as the repository origin url.
         :type project: str
         :param commit: Id of the vcs commit for the version of code that created the update.
@@ -193,6 +199,22 @@ class HistoryEntryOrigin(object):
         if line is None:
             line = Metadata.get_call_location(depth=2)
 
+        if user is None:
+            assert HistoryEntryOrigin._USER is not None, "No default user set. Set with HistoryEventOrigin.set"
+            user = HistoryEntryOrigin._USER
+
+        if project is None:
+            assert HistoryEntryOrigin._PROJECT is not None
+            project = HistoryEntryOrigin._PROJECT
+
+        if pipeline is None:
+            assert HistoryEntryOrigin._PIPELINE is not None
+            pipeline = HistoryEntryOrigin._PIPELINE
+
+        if commit is None:
+            assert HistoryEntryOrigin._COMMIT is not None
+            commit = HistoryEntryOrigin._COMMIT
+
         self.origin_name = origin_name
         self.user = user
         self.project = project
@@ -200,6 +222,13 @@ class HistoryEntryOrigin(object):
         self.pipeline = pipeline
         self.line = line
         self.details = details
+
+    @classmethod
+    def set_globals(cls, user, project, pipeline, commit):
+        cls._USER = user
+        cls._PROJECT = project
+        cls._PIPELINE = pipeline
+        cls._COMMIT = commit
 
     def to_dict(self):
         return {
