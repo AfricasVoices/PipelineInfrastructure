@@ -108,7 +108,7 @@ class Message(object):
 
 
 class HistoryEntry(object):
-    def __init__(self, update_path, updated_doc, origin, timestamp):
+    def __init__(self, update_path, updated_doc, origin, timestamp, history_entry_id=None):
         """
         Represents an entry in the database's history, describing an update to one of the documents.
 
@@ -121,7 +121,14 @@ class HistoryEntry(object):
         :type origin: HistoryEntryOrigin
         :param timestamp: Timestamp this entry was made in Firestore, or None if it hasn't yet been written to Firestore
         :type timestamp: datetime.datetime | None
+        :param history_entry_id: Id of this history entry. If None, an id will automatically be generated in the
+                                 constructor.
+        :type history_entry_id: str | None
         """
+        if history_entry_id is None:
+            history_entry_id = str(uuid.uuid4())
+
+        self.history_entry_id = history_entry_id
         self.update_path = update_path
         self.updated_doc = updated_doc
         self.origin = origin
@@ -129,6 +136,7 @@ class HistoryEntry(object):
 
     def to_dict(self):
         return {
+            "history_entry_id": self.history_entry_id,
             "update_path": self.update_path,
             "updated_doc": self.updated_doc.to_dict(),
             "origin": self.origin.to_dict(),
@@ -147,6 +155,7 @@ class HistoryEntry(object):
         :rtype: HistoryEntry
         """
         return HistoryEntry(
+            history_entry_id=d["history_entry_id"],
             update_path=d["update_path"],
             updated_doc=d["updated_doc"] if doc_type is None else doc_type.from_dict(d["updated_doc"]),
             origin=HistoryEntryOrigin.from_dict(d["origin"]),
