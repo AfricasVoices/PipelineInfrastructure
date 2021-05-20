@@ -155,12 +155,12 @@ class HistoryEntry(object):
 
 
 class HistoryEntryOrigin(object):
-    def __init__(self, name, project, pipeline, details, commit, line=None):
+    def __init__(self, origin_name, project, pipeline, details, commit, line=None):
         """
         Represents the origin description for a history event.
 
-        :param name: Human-friendly name describing the origin of the update e.g. "Rapid Pro -> Database Sync"
-        :type name: str
+        :param origin_name: Human-friendly name describing the origin of the update e.g. "Rapid Pro -> Database Sync"
+        :type origin_name: str
         :param project: Name of the project that created the update, ideally as the repository origin url.
         :type project: str
         :param commit: Id of the vcs commit for the version of code that created the update.
@@ -182,7 +182,7 @@ class HistoryEntryOrigin(object):
         if line is None:
             line = Metadata.get_call_location(depth=2)
 
-        self.name = name
+        self.origin_name = origin_name
         self.project = project
         self.commit = commit
         self.pipeline = pipeline
@@ -191,7 +191,7 @@ class HistoryEntryOrigin(object):
 
     def to_dict(self):
         return {
-            "name": self.name,
+            "origin_name": self.origin_name,
             "project": self.project,
             "commit": self.commit,
             "pipeline": self.pipeline,
@@ -202,7 +202,7 @@ class HistoryEntryOrigin(object):
     @classmethod
     def from_dict(cls, d):
         return HistoryEntryOrigin(
-            name=d["name"],
+            origin_name=d["origin_name"],
             project=d["project"],
             pipeline=d["pipeline"],
             details=d["details"],
