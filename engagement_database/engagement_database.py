@@ -99,14 +99,15 @@ class EngagementDatabase(object):
         )
 
         # Log a history event for this update
+        history_entry = HistoryEntry(
+            update_path=self._message_ref(message.message_id),
+            origin=origin,
+            updated_doc=message,
+            timestamp=firestore.SERVER_TIMESTAMP
+        )
         transaction.set(
-            self._history_ref().document(str(uuid.uuid4())),  # TODO: Auto-id in the history entries.
-            HistoryEntry(
-                update_path=self._message_ref(message.message_id),
-                origin=origin,
-                updated_doc=message,
-                timestamp=firestore.SERVER_TIMESTAMP
-            ).to_dict()
+            self._history_entry_ref(history_entry.history_entry_id),
+            history_entry.to_dict()
         )
 
         if commit_before_returning:
