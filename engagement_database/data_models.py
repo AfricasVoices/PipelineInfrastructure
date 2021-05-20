@@ -1,6 +1,7 @@
 import uuid
 
 from core_data_modules.data_models import Label
+from core_data_modules.traced_data import Metadata
 
 
 class MessageStatuses(object):
@@ -104,3 +105,112 @@ class Message(object):
 
     def copy(self):
         return Message.from_dict(self.to_dict())
+
+
+class HistoryEntry(object):
+    def __init__(self, update_path, updated_doc, origin, timestamp):
+        """
+        Represents an entry in the database's history, describing an update to one of the documents.
+
+        :param update_path: Full path in Firestore to the document that was updated.
+        :type update_path: str
+        :param updated_doc: Snapshot of the updated document at the time the update was made.
+                            The document object requires a `to_dict()` method so it can be serialized.
+        :type updated_doc: dict | obj with to_dict() method.
+        :param origin: Origin of this update.
+        :type origin: HistoryEntryOrigin
+        :param timestamp: Timestamp this entry was made in Firestore, or None if it hasn't yet been written to Firestore
+        :type timestamp: datetime.datetime | None
+        """
+        self.update_path = update_path
+        self.updated_doc = updated_doc
+        self.origin = origin
+        self.timestamp = timestamp
+
+    def to_dict(self):
+        return {
+            "update_path": self.update_path,
+            "updated_doc": self.updated_doc.to_dict(),
+            "origin": self.origin.to_dict(),
+            "timestamp": self.timestamp
+        }
+
+    @classmethod
+    def from_dict(cls, d, doc_type=None):
+        """
+        :param d: Dictionary to initialise from.
+        :type d: dict
+        :param doc_type: Type to deserialize the updated_doc to e.g. `Message`. If None, returns the updated_doc in its
+                         serialized form.
+        :type doc_type: class with from_dict() method.
+        :return: HistoryEntry instance
+        :rtype: HistoryEntry
+        """
+        return HistoryEntry(
+            update_path=d["update_path"],
+            updated_doc=d["updated_doc"] if doc_type is None else doc_type.from_dict(d["updated_doc"]),
+            origin=HistoryEntryOrigin.from_dict(d["origin"]),
+            timestamp=d["timestamp"]
+        )
+
+
+class HistoryEntryOrigin(object):
+    def __init__(self, origin_name, user, project, pipeline, details, commit, line=None):
+        """
+        Represents the origin description for a history event.
+
+        :param origin_name: Human-friendly name describing the origin of the update e.g. "Rapid Pro -> Database Sync"
+        :type origin_name: str
+        :param user: Id of the user who ran the program that created the update e.g. user@domain.com.
+        :type user: str
+        :param project: Name of the project that created the update, ideally as the repository origin url.
+        :type project: str
+        :param commit: Id of the vcs commit for the version of code that created the update.
+        :type commit: str
+        :param pipeline: Name of the pipeline that created the update.
+        :type pipeline: str
+        :param details: Dictionary containing any update-specific details that help to explain/justify the update.
+                        This is to aid with manual debugging, and would typically include a copy of source data and
+                        a description of its original location.
+                        For example:
+                         - When importing messages from Rapid Pro, include the Rapid Pro workspace name and run/message.
+                         - When importing participants from a listening group csv, include the csv's name and hash.
+                         - When updating labels from Coda, include the dataset id and message in Coda.
+        :type details: dict
+        :param line: Line of code that created the update. If None, automatically sets to the line that called this
+                     constructor.
+        :type line: str | None
+        """
+        if line is None:
+            line = Metadata.get_call_location(depth=2)
+
+        self.origin_name = origin_name
+        self.user = user
+        self.project = project
+        self.commit = commit
+        self.pipeline = pipeline
+        self.line = line
+        self.details = details
+
+    def to_dict(self):
+        return {
+            "origin_name": self.origin_name,
+            "user": self.user,
+            "project": self.project,
+            "commit": self.commit,
+            "pipeline": self.pipeline,
+            "line": self.line,
+            "details": self.details
+        }
+
+    @classmethod
+    def from_dict(cls, d):
+        return HistoryEntryOrigin(
+            origin_name=d["origin_name"],
+            user=d["user"],
+            project=d["project"],
+            pipeline=d["pipeline"],
+            details=d["details"],
+            commit=d["commit"],
+            line=d["line"]
+        )
