@@ -56,6 +56,9 @@ class EngagementDatabase(object):
         Note that requesting large numbers of messages is expensive and this function doesn't guarantee that all
         messages will be downloaded. Use of where and limit filters is strongly encouraged.
 
+        Note also that providing a transaction for a query that matches a lot of documents will lock a large number
+        of documents, causing performance issues.
+
         :param filter: Filter to apply to the underlying Firestore query.
         :type filter: Callable of google.cloud.firestore.Query -> google.cloud.firestore.Query
         :param transaction: Transaction to run this get in or None.
