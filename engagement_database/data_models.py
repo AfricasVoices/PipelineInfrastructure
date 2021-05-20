@@ -143,7 +143,7 @@ class HistoryEntry(object):
         :param doc_type: Type to deserialize the updated_doc to e.g. `Message`. If None, returns the updated_doc in its
                          serialized form.
         :type doc_type: class with from_dict() method.
-        :return:
+        :return: HistoryEntry instance
         :rtype: HistoryEntry
         """
         return HistoryEntry(
