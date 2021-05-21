@@ -8,7 +8,7 @@ from util.firestore_utils import make_firestore_client
 
 class EngagementDatabase(object):
     def __init__(self, client, database_path):
-        f"""
+        """
         :param client: Firebase client.
         :type client: firebase_admin.auth.Client
         :param database_path: Path to the parent database document e.g. "databases/test-project"
