@@ -29,7 +29,7 @@ class EngagementDatabase(object):
         :type database_path: str
         :param app_name: Name to give the Firestore app instance we'll use to connect.
         :type app_name: str
-        :return:
+        :return: EngagementDatabase instance
         :rtype: EngagementDatabase
         """
         return cls(make_firestore_client(cert, app_name), database_path)
