@@ -21,7 +21,7 @@ class EngagementDatabase(object):
         self._database_ref().set({"database_path": database_path}, merge=True)
 
     @classmethod
-    def init_from_credentials(cls, cert, database_path, app_name="ContactsDatabase"):
+    def init_from_credentials(cls, cert, database_path, app_name="EngagementDatabase"):
         """
         :param cert: Firestore service account certificate, as a path to a file or a dictionary.
         :type cert: str | dict
