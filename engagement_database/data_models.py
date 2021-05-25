@@ -164,19 +164,30 @@ class HistoryEntry(object):
 
 
 class HistoryEntryOrigin(object):
-    def __init__(self, origin_name, user, project, pipeline, details, commit, line=None):
+    # Default settings to use for properties that are very unlikely to change while a script is running.
+    # Set these with cls.set_defaults()
+    _default_user = None
+    _default_project = None
+    _default_pipeline = None
+    _default_commit = None
+
+    def __init__(self, origin_name, details, user=None, project=None, pipeline=None, commit=None, line=None):
         """
         Represents the origin description for a history event.
 
         :param origin_name: Human-friendly name describing the origin of the update e.g. "Rapid Pro -> Database Sync"
         :type origin_name: str
         :param user: Id of the user who ran the program that created the update e.g. user@domain.com.
-        :type user: str
+                     If None, attempts to use the global default set by cls.set_defaults if it exists, otherwise fails.
+        :type user: str | None
         :param project: Name of the project that created the update, ideally as the repository origin url.
+                        If None, attempts to use the global default set by cls.set_defaults if it exists, otherwise fails.
         :type project: str
         :param commit: Id of the vcs commit for the version of code that created the update.
+                       If None, attempts to use the global default set by cls.set_defaults if it exists, otherwise fails.
         :type commit: str
         :param pipeline: Name of the pipeline that created the update.
+                         If None, attempts to use the global default set by cls.set_defaults if it exists, otherwise fails.
         :type pipeline: str
         :param details: Dictionary containing any update-specific details that help to explain/justify the update.
                         This is to aid with manual debugging, and would typically include a copy of source data and
@@ -193,6 +204,26 @@ class HistoryEntryOrigin(object):
         if line is None:
             line = Metadata.get_call_location(depth=2)
 
+        if user is None:
+            assert HistoryEntryOrigin._default_user is not None, \
+                "No default user set. Set one with HistoryEventOrigin.set_defaults"
+            user = HistoryEntryOrigin._default_user
+
+        if project is None:
+            assert HistoryEntryOrigin._default_project is not None, \
+                "No default project set. Set one with HistoryEventOrigin.set_defaults"
+            project = HistoryEntryOrigin._default_project
+
+        if pipeline is None:
+            assert HistoryEntryOrigin._default_pipeline is not None, \
+                "No default pipeline set. Set one with HistoryEventOrigin.set_defaults"
+            pipeline = HistoryEntryOrigin._default_pipeline
+
+        if commit is None:
+            assert HistoryEntryOrigin._default_commit is not None, \
+                "No default commit set. Set one with HistoryEventOrigin.set_defaults"
+            commit = HistoryEntryOrigin._default_commit
+
         self.origin_name = origin_name
         self.user = user
         self.project = project
@@ -200,6 +231,26 @@ class HistoryEntryOrigin(object):
         self.pipeline = pipeline
         self.line = line
         self.details = details
+
+    @classmethod
+    def set_defaults(cls, user, project, pipeline, commit):
+        """
+        Sets default options for parameters that are very unlikely to change over the run of a single script.
+        If set, these will automatically be used when constructing future HistoryEventOrigins.
+
+        :param user: Id of the user who ran the program that created the update e.g. user@domain.com.
+        :type user: str | None
+        :param project: Name of the project that created the update, ideally as the repository origin url.
+        :type project: str
+        :param commit: Id of the vcs commit for the version of code that created the update.
+        :type commit: str
+        :param pipeline: Name of the pipeline that created the update.
+        :type pipeline: str
+        """
+        cls._default_user = user
+        cls._default_project = project
+        cls._default_pipeline = pipeline
+        cls._default_commit = commit
 
     def to_dict(self):
         return {
