@@ -49,6 +49,22 @@ class EngagementDatabase(object):
     def _message_ref(self, message_id):
         return self._messages_ref().document(message_id)
 
+    def get_message(self, message_id, transaction=None):
+        """
+        Gets a message by id from the database.
+
+        :param message_id: Id of message to get.
+        :type message_id: str
+        :param transaction: Transaction to run this get in or None.
+        :type transaction: google.cloud.firestore.Transaction | None
+        :return: Message with id `message_id`, if it exists in the database, otherwise None.
+        :rtype: engagement_database.data_models.Message | None
+        """
+        doc = self._message_ref(message_id).get(transaction=transaction)
+        if not doc.exists:
+            return None
+        return Message.from_dict(doc.to_dict())
+
     def get_messages(self, filter=lambda q: q, transaction=None):
         """
         Gets messages from the database.
