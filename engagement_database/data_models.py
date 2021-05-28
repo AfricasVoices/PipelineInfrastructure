@@ -1,6 +1,7 @@
 import uuid
 
-from core_data_modules.data_models import Label, get_latest_labels
+from core_data_modules.data_models import Label
+from core_data_modules.data_models.message import get_latest_labels
 from core_data_modules.traced_data import Metadata
 
 
