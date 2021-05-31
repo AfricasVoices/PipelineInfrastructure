@@ -1,6 +1,7 @@
 import uuid
 
 from core_data_modules.data_models import Label
+from core_data_modules.data_models.message import get_latest_labels
 from core_data_modules.traced_data import Metadata
 
 
@@ -67,6 +68,12 @@ class Message(object):
         self.message_id = message_id
         self.coda_id = coda_id
         self.last_updated = last_updated
+
+    def get_latest_labels(self):
+        """
+        Returns the latest label assigned to each code scheme.
+        """
+        return get_latest_labels(self.labels)
 
     def to_dict(self):
         message_dict = {
