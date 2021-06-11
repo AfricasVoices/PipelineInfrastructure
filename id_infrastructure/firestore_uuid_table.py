@@ -171,11 +171,9 @@ class FirestoreUuidTable(object):
 
         exists = uuid_doc_ref.exists
 
-        log.info(f"Ref: {uuid_doc_ref}, exists: {exists}")
-
         if not exists:
             new_uuid = FirestoreUuidTable.generate_new_uuid(self._uuid_prefix)
-            log.info(f"No mapping found for: {data}, assigning UUID: {new_uuid}")
+            log.info(f"Creating new UUID {new_uuid}")
 
             # Make sure the table doc exists
             self._client.document(f"tables/{self._table_name}").set({"table_name": self._table_name}, merge=True)
