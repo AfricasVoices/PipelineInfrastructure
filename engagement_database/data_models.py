@@ -3,6 +3,7 @@ import uuid
 from core_data_modules.data_models import Label
 from core_data_modules.data_models.message import get_latest_labels
 from core_data_modules.traced_data import Metadata
+from core_data_modules.util import TimeUtils
 
 
 class MessageStatuses(object):
@@ -78,7 +79,7 @@ class Message(object):
     def to_dict(self):
         message_dict = {
             "text": self.text,
-            "timestamp": self.timestamp,
+            "timestamp": TimeUtils.datetime_to_utc_iso_string(self.timestamp),
             "participant_uuid": self.participant_uuid,
             "direction": self.direction,
             "channel_operator": self.channel_operator,
@@ -86,7 +87,7 @@ class Message(object):
             "dataset": self.dataset,
             "labels": [label.to_dict() for label in self.labels],
             "message_id": self.message_id,
-            "last_updated": self.last_updated
+            "last_updated": TimeUtils.datetime_to_utc_iso_string(self.last_updated)
         }
 
         if self.coda_id is not None:
