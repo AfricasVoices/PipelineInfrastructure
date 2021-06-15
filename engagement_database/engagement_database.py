@@ -55,6 +55,8 @@ class EngagementDatabase(object):
 
         :param message_id: Id of message to get history for.
         :type message_id: str
+        :param filter: Filter to apply to the underlying Firestore query.
+        :type filter: Callable of google.cloud.firestore.Query -> google.cloud.firestore.Query
         :param transaction: Transaction to run this get in or None.
         :type transaction: google.cloud.firestore.Transaction | None
         :return: History entries for the requested message.
