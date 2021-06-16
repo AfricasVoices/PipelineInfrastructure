@@ -59,9 +59,6 @@ class Message(object):
         assert status in MessageStatuses.VALUES, status
         assert direction in MessageDirections.VALUES, direction
 
-        if previous_datasets is None:
-            previous_datasets = []
-
         self.text = text
         self.timestamp = timestamp
         self.participant_uuid = participant_uuid
