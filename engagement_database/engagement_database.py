@@ -49,12 +49,14 @@ class EngagementDatabase(object):
     def _message_ref(self, message_id):
         return self._messages_ref().document(message_id)
 
-    def get_history_for_message(self, message_id, transaction=None):
+    def get_history_for_message(self, message_id, filter=lambda q: q, transaction=None):
         """
         Gets all the history entries for a message, sorted by history timestamp.
 
         :param message_id: Id of message to get history for.
         :type message_id: str
+        :param filter: Filter to apply to the underlying Firestore query.
+        :type filter: Callable of google.cloud.firestore.Query -> google.cloud.firestore.Query
         :param transaction: Transaction to run this get in or None.
         :type transaction: google.cloud.firestore.Transaction | None
         :return: History entries for the requested message.
@@ -62,6 +64,7 @@ class EngagementDatabase(object):
         """
         message_ref = self._message_ref(message_id)
         query = self._history_ref().where("update_path", "==", message_ref).order_by("timestamp")
+        query = filter(query)
         data = query.get(transaction=transaction)
         return [HistoryEntry.from_dict(d.to_dict(), doc_type=Message) for d in data]
 
