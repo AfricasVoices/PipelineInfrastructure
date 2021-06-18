@@ -24,7 +24,7 @@ class MessageDirections(object):
 
 class Message(object):
     def __init__(self, text, timestamp, participant_uuid, direction, channel_operator, status, dataset, labels,
-                message_id=None, coda_id=None, last_updated=None, previous_datasets=None,):
+                 message_id=None, coda_id=None, last_updated=None, previous_datasets=None,):
         """
         Represents a message sent to or received from a participant.
 
@@ -50,14 +50,18 @@ class Message(object):
         :type coda_id: str | None
         :param last_updated: Timestamp this message was last updated in Firestore, or None if it does not yet exist.
         :type last_updated: datetime.datetime | None
-        :param previous_datasets: Datasets which this message originally belonged to/moved from. If None, a return an empty list
+        :param previous_datasets: Datasets which this message originally belonged to/moved from. If None, initialises with an empty list
         :type previous_datasets: list of strings | None
         """
+
         if message_id is None:
             message_id = str(uuid.uuid4())
 
         assert status in MessageStatuses.VALUES, status
         assert direction in MessageDirections.VALUES, direction
+
+        if previous_datasets is None:
+            previous_datasets = []
 
         self.text = text
         self.timestamp = timestamp
