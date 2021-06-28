@@ -24,7 +24,7 @@ class MessageDirections(object):
 
 class Message(object):
     def __init__(self, text, timestamp, participant_uuid, direction, channel_operator, status, dataset, labels,
-                 test_run = False, message_id=None, coda_id=None, last_updated=None, previous_datasets=None,):
+                 test_run, message_id=None, coda_id=None, last_updated=None, previous_datasets=None,):
         """
         Represents a message sent to or received from a participant.
 
