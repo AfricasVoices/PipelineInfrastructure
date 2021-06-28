@@ -24,7 +24,7 @@ class MessageDirections(object):
 
 class Message(object):
     def __init__(self, text, timestamp, participant_uuid, direction, channel_operator, status, dataset, labels,
-                 message_id=None, coda_id=None, last_updated=None, previous_datasets=None,):
+                 test_run = False, message_id=None, coda_id=None, last_updated=None, previous_datasets=None,):
         """
         Represents a message sent to or received from a participant.
 
@@ -44,6 +44,8 @@ class Message(object):
         :type dataset: str
         :param labels: Labels assigned to this message.
         :type labels: list of core_data_modules.data_models.Label
+        :param test_run: Highlights whether a message was sent by a test contact.
+        :type test_run_key: bool
         :param message_id: Id of this message. If None, a message id will automatically be generated in the constructor.
         :type message_id: str | None
         :param coda_id: Id to use to look-up this message in Coda, optional.
@@ -71,6 +73,7 @@ class Message(object):
         self.status = status
         self.dataset = dataset
         self.labels = labels
+        self.test_run = test_run
         self.message_id = message_id
         self.coda_id = coda_id
         self.last_updated = last_updated
@@ -93,6 +96,7 @@ class Message(object):
             "status": self.status,
             "dataset": self.dataset,
             "labels": [label.to_dict() for label in self.labels],
+            "test_run": self.test_run,
             "message_id": self.message_id,
             "last_updated": self.last_updated,
             "previous_datasets": self.previous_datasets,
