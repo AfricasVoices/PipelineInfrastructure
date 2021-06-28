@@ -118,6 +118,7 @@ class Message(object):
             status=d["status"],
             dataset=d["dataset"],
             labels=[Label.from_dict(label) for label in d["labels"]],
+            test_run=d["test_run"],
             previous_datasets=d["previous_datasets"],
             message_id=d.get("message_id"),
             coda_id=d.get("coda_id"),
