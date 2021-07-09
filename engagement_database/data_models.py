@@ -1,5 +1,6 @@
 import uuid
 
+
 from core_data_modules.data_models import Label
 from core_data_modules.data_models.message import get_latest_labels
 from core_data_modules.traced_data import Metadata
@@ -119,6 +120,12 @@ class Message(object):
             coda_id=d.get("coda_id"),
             last_updated=d["last_updated"]
         )
+
+    def serialise_message(self, message):
+        message_dict = message.to_dict()
+        message_dict["timestamp"] = message_dict["timestamp"].isoformat()
+        message_dict["last_updated"] = message_dict["last_updated"].isoformat()
+        return message_dict
 
     def copy(self):
         return Message.from_dict(self.to_dict())
