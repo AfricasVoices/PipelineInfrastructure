@@ -159,6 +159,9 @@ class FirestoreUuidTable(object):
         
         return ret
 
+    def has_data(self, data):
+        return self._client.document(f"tables/{self._table_name}/mappings/{data}").get().exists
+
     def data_to_uuid(self, data):
         # Check if data mapping exists
         # If it does return the UUID
